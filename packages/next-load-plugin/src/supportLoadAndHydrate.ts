@@ -22,7 +22,9 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadL
     `__Next_Load__Page__${hash}__`
   )
 
-  if (!pageVariableName) return code
+  const loadExport = getNamedExport(pagePkg, 'load')
+
+  if (!pageVariableName || !loadExport) return code
 
   // Get the new code after intercepting the export
   code = pagePkg.getCode()
