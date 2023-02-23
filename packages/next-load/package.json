@@ -1,0 +1,59 @@
+{
+  "name": "next-load",
+  "version": "0.1.0",
+  "main": "lib/index.ts",
+  "description": "Load data in one place, hydrate some parts & consume everywhere in Next.js",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "preact",
+    "nextjs",
+    "next.js",
+    "next",
+    "plugin",
+    "data",
+    "load",
+    "fetch",
+    "hydrate",
+    "consume"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aralroca/next-load.git"
+  },
+  "author": {
+    "name": "Aral Roca Gòmez",
+    "email": "contact@aralroca.com"
+  },
+  "type": "module",
+  "source": "index.ts",
+  "exports": {
+    "types": "./lib/index.d.ts",
+    "require": "./lib/index.cjs",
+    "default": "./lib/index.modern.js"
+  },
+  "types": "lib/types.d.ts",
+  "module": "lib/index.module.js",
+  "unpkg": "lib/index.umd.js",
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  },
+  "peerDependencies": {
+    "next": ">= 13.0.0",
+    "react": ">= 18.0.0",
+    "react-dom": ">= 18.0.0"
+  },
+  "scripts": {
+    "build": "rm -rf lib && microbundle",
+    "dev": "microbundle watch",
+    "test": "jest",
+    "prepublish": "yarn test && yarn build"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": true
+  }
+}

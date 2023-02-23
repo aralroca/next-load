@@ -1,2 +1,5 @@
-# next-load
-Load &amp; consume data in an easy way in Next.js +13 app dir 
+# Next-load
+
+**Only for Next.js 13 app dir**
+
+### **Load** data in one place, **hydrate** some parts & **consume** everywhere

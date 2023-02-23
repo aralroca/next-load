@@ -1,0 +1,68 @@
+{
+  "name": "next-load-plugin",
+  "version": "0.1.0",
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./index.d.ts",
+  "description": "Load data in one place, hydrate some parts & consume everywhere in Next.js",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "preact",
+    "nextjs",
+    "next.js",
+    "next",
+    "plugin",
+    "data",
+    "load",
+    "fetch",
+    "hydrate",
+    "consume"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aralroca/next-load.git"
+  },
+  "author": {
+    "name": "Aral Roca Gòmez",
+    "email": "contact@aralroca.com"
+  },
+  "files": [
+    "lib",
+    "index*",
+    "loader*",
+    "support*",
+    "types*",
+    "utils*"
+  ],
+  "scripts": {
+    "build": "yarn clean && cross-env NODE_ENV=production && yarn tsc",
+    "clean": "yarn clean:build",
+    "clean:build": "rm -rf lib index *.d.ts loader supportLoad* types utils",
+    "prepublish": "yarn test && yarn build",
+    "test": "cross-env NODE_ENV=test jest",
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage",
+    "test:watch": "cross-env NODE_ENV=test jest --watch",
+    "tsc": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json && node build-packages.js"
+  },
+  "dependencies": {
+    "typescript": "4.5.2"
+  },
+  "devDependencies": {
+    "next": "13.2.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "@types/react": "18.0.28",
+    "@types/react-dom": "18.0.11"
+  },
+  "peerDependencies": {
+    "next-load": ">= 0.1.0"
+  },
+  "engines": {
+    "node": ">=14.15.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  }
+}
