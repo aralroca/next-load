@@ -34,11 +34,24 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadL
   if (isClientCode && isPage) return templateAppDirClientPage({ code, hash, pageVariableName, pathname, hasLoadLocaleFrom })
 
   return `
+    import * as __react from 'react'
+ 
     ${code}
   
     export default async function __Next_Load_new__${hash}__(props) {
-      globalThis.__NEXT_LOAD__ = 'todo'
-      return <${pageVariableName} {...props} />
+      const _data = ${load ? 'await load()' : 'null'}
+      globalThis.__NEXT_LOAD__ = { hydrate: _data, page: '${pathname}' }
+      return (
+        <>
+          <div 
+            id="__NEXT_LOAD_DATA__"
+            data-testid="__NEXT_LOAD_DATA__"
+            data-hydrate={JSON.stringify(_data)}
+            data-page="${pathname}"
+          />
+          <${pageVariableName} {...props} />
+        </>
+      )
     }
 `
 }
