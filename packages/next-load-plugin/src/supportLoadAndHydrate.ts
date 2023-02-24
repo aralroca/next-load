@@ -61,22 +61,19 @@ function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientT
       const forceUpdate = __react.useReducer(() => [])[1]
       const isClient = typeof window !== 'undefined'
 
-      if (isClient && !('__NEXT_LOAD__' in window)) {
-        window.__NEXT_LOAD__ = undefined
-        window.__NEXT_TO_LOAD__ = true
-        update()
+      if (isClient && !window.__NEXT_LOAD__) {
+        window.__NEXT_LOAD__ = {}
+        update(false)
       }
 
       __react.useEffect(update)
-      function update() {
+      function update(rerender = true) {
         const el = document.getElementById('__NEXT_LOAD_DATA__')
         if (!el) return
-        const { data } = el.dataset
-        window.__NEXT_LOAD__ = data
-        if (window.__NEXT_TO_LOAD__) {
-          forceUpdate()
-          delete window.__NEXT_TO_LOAD__
-        }
+        const { hydrate, page } = el.dataset
+        const shouldRerender = page !== window.__NEXT_LOAD__.page
+        window.__NEXT_LOAD__ = { hydrate, page }
+        if (shouldRerender && rerender) forceUpdate()
       }
 
       return <${pageVariableName} {...props} />

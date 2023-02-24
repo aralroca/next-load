@@ -7,13 +7,13 @@ describe("next-load", () => {
 
   it("should work", () => {
     console.warn = jest.fn();
-    globalThis.__NEXT_LOAD__ = "next-load";
+    globalThis.__NEXT_LOAD__ = { hydrate: "next-load" };
     expect(consume()).toEqual("next-load");
-    globalThis.__NEXT_LOAD__ = undefined;
+    globalThis.__NEXT_LOAD__ = { hydrate: undefined };
     expect(consume()).toEqual(undefined);
-    globalThis.__NEXT_LOAD__ = 4;
+    globalThis.__NEXT_LOAD__ = { hydrate: 4 };
     expect(consume()).toEqual(4);
-    globalThis.__NEXT_LOAD__ = { test: true };
+    globalThis.__NEXT_LOAD__ = { hydrate: { test: true } };
     expect(consume()).toEqual({ test: true });
     expect(console.warn).not.toHaveBeenCalled();
   });

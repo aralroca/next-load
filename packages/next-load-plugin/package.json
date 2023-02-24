@@ -67,7 +67,8 @@
     "preset": "ts-jest",
     "testEnvironment": "jest-environment-jsdom",
     "moduleNameMapper": {
-      "^@react$": "<rootDir>/../../node_modules/react"
+      "^@react$": "<rootDir>/../../node_modules/react",
+      "^next-load$": "<rootDir>/../next-load/index.ts"
     }
   }
 }

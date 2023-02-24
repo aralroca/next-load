@@ -42,18 +42,22 @@ describe('supportLoadAndHydrate', () => {
     });
 
     it('SHOULD transfrom a CLIENT /component to hydrate if needs', async () => {
+      const element = document.createElement('div')
+      element.dataset.hydrate = 'HYDRATE WORKS'
+      document.getElementById = jest.fn().mockReturnValue(element)
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
+        import { consume } from 'next-load';
         
-        export default function Component() { return <h1 data-testid="test">TODO</h1> }
+        export default function Component() { return <h1 data-testid="test">{consume<string>()}</h1> }
       `)
       const options = { pageNoExt: '/component', ...insideAppDir }
       const output = supportLoadAndHydrate(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
       const div = screen.getByTestId('test')
-      expect(div.textContent).toBe('TODO')
+      expect(div.textContent).toBe('HYDRATE WORKS')
     });
   })
 });
