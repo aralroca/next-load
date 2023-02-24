@@ -92,8 +92,7 @@ describe('supportLoadAndHydrate', () => {
       const options = { pageNoExt: '/page', ...insideAppDir }
       const output = supportLoadAndHydrate(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
-      const element = await page()
-      render(<>{element}</>)
+      render(<>{await page()}</>)
       const div = screen.getByTestId('test')
       expect(div.textContent).toBe('Page: LOAD WORKS')
     })
@@ -107,8 +106,22 @@ describe('supportLoadAndHydrate', () => {
       const options = { pageNoExt: '/page', ...insideAppDir }
       const output = supportLoadAndHydrate(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
-      const element = await page()
-      render(<>{element}</>)
+      render(<>{await page()}</>)
+      const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement.dataset.page).toBe('/')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
+    })
+    it('SHOULD also work the "load" without promise in the SERVER /page', async () => {
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+
+        export function load() { return { text: 'LOAD WORKS' }; }
+        export default function Page() { return <div>Page</div>; }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
       expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
