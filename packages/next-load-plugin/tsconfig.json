@@ -7,6 +7,7 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "noImplicitAny": true,
+    "jsx": "react",
     "noImplicitReturns": true,
     "noImplicitThis": true,
     "declaration": true,

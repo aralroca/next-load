@@ -22,9 +22,10 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadL
     `__Next_Load__Page__${hash}__`
   )
 
-  const loadExport = getNamedExport(pagePkg, 'load')
+  const load = getNamedExport(pagePkg, 'load')
+  const pageWithoutLoadExport = isPage && !load
 
-  if (!pageVariableName || !loadExport) return code
+  if (!pageVariableName || pageWithoutLoadExport) return code
 
   // Get the new code after intercepting the export
   code = pagePkg.getCode()
@@ -57,7 +58,27 @@ function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientT
     ${clientCode}
 
     export default function __Next_Load_new__${hash}__(props) {
-      console.log('todo templateAppDirClientComponent')
+      const forceUpdate = __react.useReducer(() => [])[1]
+      const isClient = typeof window !== 'undefined'
+
+      if (isClient && !('__NEXT_LOAD__' in window)) {
+        window.__NEXT_LOAD__ = undefined
+        window.__NEXT_TO_LOAD__ = true
+        update()
+      }
+
+      __react.useEffect(update)
+      function update() {
+        const el = document.getElementById('__NEXT_LOAD_DATA__')
+        if (!el) return
+        const { data } = el.dataset
+        window.__NEXT_LOAD__ = data
+        if (window.__NEXT_TO_LOAD__) {
+          forceUpdate()
+          delete window.__NEXT_TO_LOAD__
+        }
+      }
+
       return <${pageVariableName} {...props} />
     }
   `

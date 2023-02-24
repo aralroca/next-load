@@ -1,8 +1,10 @@
+import React from 'react'
 import supportLoadAndHydrate from '../src/supportLoadAndHydrate'
 import { parseCode } from '../src/utils'
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { render, screen } from '@testing-library/react';
 import ts from "typescript";
 
 const insideAppDir = {
@@ -42,21 +44,30 @@ describe('supportLoadAndHydrate', () => {
     it('SHOULD transfrom a CLIENT /component to hydrate if needs', async () => {
       const pagePkg = parseCode('jsx', `
         "use client";
+        import React from 'react';
         
-        export default function Component() { return 'TODO'; }
+        export default function Component() { return <h1 data-testid="test">TODO</h1> }
       `)
       const options = { pageNoExt: '/component', ...insideAppDir }
       const output = supportLoadAndHydrate(pagePkg, options)
-      const module = await importFromString(output)
-      expect(module.default()).toBe('TODO')
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = screen.getByTestId('test')
+      expect(div.textContent).toBe('TODO')
     });
   })
 });
 
 async function importFromString(code: string): Promise<any> {
-  const tempFile = join(tmpdir(), `toremove-${Date.now()}.js`);
-  const transpiledCode = ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  await fs.writeFile(tempFile, transpiledCode);
+  const tempFile = join(tmpdir(), `toremove-${Date.now()}.tsx`);
+  const transpiledCode = ts.transpileModule(code.replace(new RegExp("'react'", 'gm'), "'@react'"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      jsx: ts.JsxEmit.React,
+      esModuleInterop: true
+    }
+  }).outputText;
+  await fs.writeFile(tempFile, '// @ts-nocheck\n' + transpiledCode);
   const module = await import(tempFile).catch(e => console.error(e));
   await fs.unlink(tempFile);
   return module;
