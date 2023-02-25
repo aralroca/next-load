@@ -1,9 +1,10 @@
 import { ParsedFilePkg } from "./types";
 import { interceptExport, getNamedExport, removeCommentsFromCode } from "./utils";
+import ts from "typescript";
 
 const clientLine = ['"use client"', "'use client'"]
 
-export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadLocaleFrom = false, pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
+export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
   let code = pagePkg.getCode()
   const codeWithoutComments = removeCommentsFromCode(code).trim()
   const isClientCode = clientLine.some(line => codeWithoutComments.startsWith(line))
@@ -31,7 +32,7 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadL
   code = pagePkg.getCode()
 
   if (isClientCode && !isPage) return templateAppDirClientComponent({ code, hash, pageVariableName })
-  if (isClientCode && isPage) return templateAppDirClientPage({ code, hash, pageVariableName, pathname, hasLoadLocaleFrom })
+  if (isClientCode && isPage) return templateAppDirClientPage({ code, hash, pageVariableName, pathname, load })
 
   return `
     import * as __react from 'react'
@@ -56,7 +57,7 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { hasLoadL
 `
 }
 
-type ClientTemplateParams = { code: string, hash: string, pageVariableName: string, pathname?: string, hasLoadLocaleFrom?: boolean }
+type ClientTemplateParams = { code: string, hash: string, pageVariableName: string, pathname?: string, load?: ts.Expression | ts.Declaration }
 
 function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientTemplateParams) {
   let clientCode = code
@@ -94,7 +95,7 @@ function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientT
   `
 }
 
-function templateAppDirClientPage({ code, hash, pageVariableName, pathname, hasLoadLocaleFrom }: ClientTemplateParams) {
+function templateAppDirClientPage({ code, hash, pageVariableName, pathname, load }: ClientTemplateParams) {
   let clientCode = code
   const topLine = clientLine[0]
 
@@ -108,7 +109,22 @@ function templateAppDirClientPage({ code, hash, pageVariableName, pathname, hasL
     ${clientCode}
 
     export default function __Next_Load_new__${hash}__(props) {
-      console.log('todo templateAppDirClientPage')
+      const forceUpdate = __react.useReducer(() => [])[1]
+      const page = '${pathname}'
+      const isServer = typeof window === 'undefined'
+
+      __react.useEffect(() => {
+        const shouldLoad = page !== window.__NEXT_LOAD__?.page
+        if (!shouldLoad) return
+
+        Promise.resolve(${load ? 'load()' : ''}).then(_data => {
+          window.__NEXT_LOAD__ = { hydrate: _data, page }
+          forceUpdate()
+        })
+      }, [])
+
+      if (isServer || !window.__NEXT_LOAD__) return null
+      
       return <${pageVariableName} {...props} />
     }
   `

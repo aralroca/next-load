@@ -7,6 +7,12 @@ import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import ts from "typescript";
 
+declare global {
+  namespace globalThis {
+    var __NEXT_LOAD__: any
+  }
+}
+
 const insideAppDir = {
   normalizedResourcePath: '/Users/username/Projects/nextjs-blog/app/page.js',
   normalizedPagesPath: '/Users/username/Projects/nextjs-blog/app',
@@ -18,6 +24,10 @@ const outsideAppDir = {
 }
 
 describe('supportLoadAndHydrate', () => {
+  beforeEach(() => {
+    globalThis.__NEXT_LOAD__ = undefined
+  })
+
   describe('WITHOUT load export', () => {
     it('SHOULD NOT transform the SERVER /page', () => {
       const pagePkg = parseCode('jsx', `
@@ -125,6 +135,71 @@ describe('supportLoadAndHydrate', () => {
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
       expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
+    })
+    it('SHOULD be possible to load this data inside a CLIENT /page', async () => {
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = async () => ({ text: 'LOAD WORKS' });
+
+        export default function Page() {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Client page: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const ClientPage = await importFromString(output).then(m => m.default)
+      render(<ClientPage />);
+      const div = await screen.findByTestId('test')
+      expect(div.textContent).toBe('Client page: LOAD WORKS')
+    })
+    it('SHOULD also work the "load" without promise in the CLIENT /page', async () => {
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = () => ({ text: 'LOAD WORKS' });
+
+        export default function Page() {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Client page: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const ClientPage = await importFromString(output).then(m => m.default)
+      render(<ClientPage />);
+      const div = await screen.findByTestId('test')
+      expect(div.textContent).toBe('Client page: LOAD WORKS')
+    })
+    it('SHOULD NOT add an element to hydrate to clients in a CLIENT page', async () => {
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export async function load() { return { text: 'LOAD WORKS' }; }
+        export default function Page() { 
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Client page: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const ClientPage = await importFromString(output).then(m => m.default)
+      render(<ClientPage />)
+      const div = await screen.findByTestId('test')
+      expect(div.textContent).toBe('Client page: LOAD WORKS')
+      const hydrateElement = screen.queryByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement).toBe(null)
     })
   });
 });
