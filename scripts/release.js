@@ -19,7 +19,7 @@ console.log(`Current version: ${packageJson.version}`);
 if (prerelease) {
   console.log('Publishing prerelease version');
   const npmPublish = spawn('npm', ['publish', '--tag', 'next'], { stdio: 'inherit' });
-  npmPublish.stdout.on('data', (data) => console.log(data));
+  npmPublish.on('data', (data) => console.log(data));
   npmPublish.on('close', (code) => {
     if (code !== 0) {
       console.log(`npm publish failed with code ${code}`);
@@ -32,7 +32,7 @@ if (prerelease) {
 
 console.log('Publishing release version');
 const npmPublish = spawn('npm', ['publish'], { stdio: 'inherit' });
-npmPublish.stdout.on('data', (data) => console.log(data));
+npmPublish.on('data', (data) => console.log(data));
 npmPublish.on('close', (code) => {
   if (code !== 0) {
     console.log(`npm publish failed with code ${code}`);
