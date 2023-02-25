@@ -48,7 +48,9 @@
     "build": "rm -rf lib && microbundle",
     "dev": "microbundle watch",
     "test": "jest",
-    "prepublish": "yarn test && yarn build"
+    "prepublish": "yarn test && yarn build",
+    "release": "yarn prepublish && ../../scripts/release.js",
+    "prerelease": "yarn prepublish && ../../scripts/release.js prerelease"
   },
   "prettier": {
     "trailingComma": "es5",

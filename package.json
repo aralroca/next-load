@@ -39,7 +39,9 @@
     "build:next-load-plugin": "yarn workspace next-load-plugin build",
     "test": "yarn workspace next-load-plugin test && yarn workspace next-load test",
     "format": "pretty-quick",
-    "husky": "pretty-quick --staged && yarn test"
+    "husky": "pretty-quick --staged && yarn test",
+    "release": "yarn workspace next-load-plugin release && yarn workspace next-load release",
+    "prerelease": "yarn workspace next-load-plugin prerelease && yarn workspace next-load prerelease"
   },
   "devDependencies": {
     "@types/jest": "29.4.0",

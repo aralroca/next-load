@@ -38,8 +38,10 @@
   "scripts": {
     "build": "yarn clean && cross-env NODE_ENV=production && yarn tsc",
     "clean": "yarn clean:build",
-    "clean:build": "rm -rf lib index *.d.ts loader supportLoad* types utils",
+    "clean:build": "rm -rf lib index *.d.ts loader transformer* types utils",
     "prepublish": "yarn test && yarn build",
+    "release": "yarn prepublish && ../../scripts/release.js",
+    "prerelease": "yarn prepublish && ../../scripts/release.js prerelease",
     "test": "cross-env NODE_ENV=test jest",
     "test:coverage": "cross-env NODE_ENV=test jest --coverage",
     "test:watch": "cross-env NODE_ENV=test jest --watch",
