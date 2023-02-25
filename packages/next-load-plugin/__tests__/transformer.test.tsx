@@ -1,5 +1,5 @@
 import React from 'react'
-import supportLoadAndHydrate from '../src/supportLoadAndHydrate'
+import transformer from '../src/transformer'
 import { parseCode } from '../src/utils'
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
@@ -23,7 +23,7 @@ const outsideAppDir = {
   normalizedPagesPath: '/Users/username/Projects/nextjs-blog/app',
 }
 
-describe('supportLoadAndHydrate', () => {
+describe('transformer', () => {
   beforeEach(() => {
     globalThis.__NEXT_LOAD__ = undefined
   })
@@ -35,7 +35,7 @@ describe('supportLoadAndHydrate', () => {
       `)
       const code = pagePkg.getCode()
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       expect(output).toBe(code)
     });
 
@@ -47,7 +47,7 @@ describe('supportLoadAndHydrate', () => {
       `)
       const code = pagePkg.getCode()
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       expect(output).toBe(code)
     });
 
@@ -57,7 +57,7 @@ describe('supportLoadAndHydrate', () => {
       `)
       const code = pagePkg.getCode()
       const options = { pageNoExt: '/component', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       expect(output).toBe(code)
     });
 
@@ -76,7 +76,7 @@ describe('supportLoadAndHydrate', () => {
         }
       `)
       const options = { pageNoExt: '/component', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
       const div = screen.getByTestId('test')
@@ -100,7 +100,7 @@ describe('supportLoadAndHydrate', () => {
         }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const div = screen.getByTestId('test')
@@ -114,7 +114,7 @@ describe('supportLoadAndHydrate', () => {
         export default function Page() { return <div>Page</div>; }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
@@ -129,7 +129,7 @@ describe('supportLoadAndHydrate', () => {
         export default function Page() { return <div>Page</div>; }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
@@ -147,7 +147,7 @@ describe('supportLoadAndHydrate', () => {
         export default function Page() { return <div>Page</div>; }
       `)
       const options = { pageNoExt: '/product/[id]/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
@@ -170,7 +170,7 @@ describe('supportLoadAndHydrate', () => {
         }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />);
       const div = await screen.findByTestId('test')
@@ -192,7 +192,7 @@ describe('supportLoadAndHydrate', () => {
         }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />);
       const div = await screen.findByTestId('test')
@@ -211,7 +211,7 @@ describe('supportLoadAndHydrate', () => {
         }
       `)
       const options = { pageNoExt: '/page', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />)
       const div = await screen.findByTestId('test')
@@ -226,7 +226,7 @@ describe('supportLoadAndHydrate', () => {
       `)
       const code = pagePkg.getCode()
       const options = { pageNoExt: '/component', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       expect(output).toBe(code)
     });
     it('SHOULD transform the CLIENT /component to hydrate but not use the load', async () => {
@@ -246,7 +246,7 @@ describe('supportLoadAndHydrate', () => {
           }
         `)
       const options = { pageNoExt: '/component', ...insideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
       const div = screen.getByTestId('test')
@@ -269,7 +269,7 @@ describe('supportLoadAndHydrate', () => {
           }
         `)
       const options = { pageNoExt: '/some/component', ...outsideAppDir }
-      const output = supportLoadAndHydrate(pagePkg, options)
+      const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
       const div = screen.getByTestId('test')

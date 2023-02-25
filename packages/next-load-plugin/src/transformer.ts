@@ -4,7 +4,9 @@ import ts from "typescript";
 
 const clientLine = ['"use client"', "'use client'"]
 
-export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
+type TransformParams = { code: string, hash: string, pageVariableName: string, pathname?: string, load?: ts.Expression | ts.Declaration }
+
+export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
   let code = pagePkg.getCode()
   const codeWithoutComments = removeCommentsFromCode(code).trim()
   const isClientCode = clientLine.some(line => codeWithoutComments.startsWith(line))
@@ -17,68 +19,47 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { pageNoEx
 
   // Removes the export default from the page
   // and tells under what name we can get the old export
-  const pageVariableName = interceptExport(
-    pagePkg,
-    'default',
-    `__Next_Load__Page__${hash}__`
-  )
+  const pageVariableName = interceptExport(pagePkg, 'default', `__Next_Load__Page__${hash}__`)
 
   const load = getNamedExport(pagePkg, 'load')
   const pageWithoutLoadExport = isPage && !load
 
+  // No need any transformation
   if (!pageVariableName || pageWithoutLoadExport) return code
 
   // Get the new code after intercepting the export
   code = pagePkg.getCode()
 
-  if (isClientCode && !isPage) return templateAppDirClientComponent({ code, hash, pageVariableName })
-  if (isClientCode && isPage) return templateAppDirClientPage({ code, hash, pageVariableName, pathname, load })
+  if (isClientCode && !isPage) return transformClientComponent({ code, hash, pageVariableName })
+  if (isClientCode && isPage) return transformClientPage({ code, hash, pageVariableName, pathname, load })
+  return transformServerPage({ code, hash, pageVariableName, pathname, load })
+}
 
+function transformServerPage({ code, hash, pageVariableName, pathname, load }: TransformParams) {
   return `
-    import * as __react from 'react'
- 
-    ${code}
-  
-    export default async function __Next_Load_new__${hash}__(props) {
-      const _data = ${load ? 'await load()' : 'null'}
-      globalThis.__NEXT_LOAD__ = { hydrate: _data, page: '${pathname}' }
-      return (
-        <>
-          <div 
-            id="__NEXT_LOAD_DATA__"
-            data-testid="__NEXT_LOAD_DATA__"
-            data-hydrate={JSON.stringify(_data)}
-            data-page="${pathname}"
-          />
-          <${pageVariableName} {...props} />
-        </>
-      )
-    }
+  import * as __react from 'react'
+
+  ${code}
+
+  export default async function __Next_Load_new__${hash}__(props) {
+    const _data = ${load ? 'await load()' : 'null'}
+    globalThis.__NEXT_LOAD__ = { hydrate: _data, page: '${pathname}' }
+    return (
+      <>
+        <div 
+          id="__NEXT_LOAD_DATA__"
+          data-testid="__NEXT_LOAD_DATA__"
+          data-hydrate={JSON.stringify(_data)}
+          data-page="${pathname}"
+        />
+        <${pageVariableName} {...props} />
+      </>
+    )
+  }
 `
 }
 
-type ClientTemplateParams = { code: string, hash: string, pageVariableName: string, pathname?: string, load?: ts.Expression | ts.Declaration }
-
-function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientTemplateParams) {
-  let clientCode = code
-  const topLine = clientLine[0]
-
-  // Clear current "use client" top line
-  clientLine.forEach(line => { clientCode = clientCode.replace(line, '') })
-
-  return `${topLine}
-    import { _useHydrate } from 'next-load'
-
-    ${clientCode}
-
-    export default function __Next_Load_new__${hash}__(props) {
-      _useHydrate()
-      return <${pageVariableName} {...props} />
-    }
-  `
-}
-
-function templateAppDirClientPage({ code, hash, pageVariableName, pathname, load }: ClientTemplateParams) {
+function transformClientPage({ code, hash, pageVariableName, pathname, load }: TransformParams) {
   let clientCode = code
   const topLine = clientLine[0]
 
@@ -108,6 +89,25 @@ function templateAppDirClientPage({ code, hash, pageVariableName, pathname, load
 
       if (isServer || !window.__NEXT_LOAD__) return null
       
+      return <${pageVariableName} {...props} />
+    }
+  `
+}
+
+function transformClientComponent({ code, hash, pageVariableName }: TransformParams) {
+  let clientCode = code
+  const topLine = clientLine[0]
+
+  // Clear current "use client" top line
+  clientLine.forEach(line => { clientCode = clientCode.replace(line, '') })
+
+  return `${topLine}
+    import { _useHydrate } from 'next-load'
+
+    ${clientCode}
+
+    export default function __Next_Load_new__${hash}__(props) {
+      _useHydrate()
       return <${pageVariableName} {...props} />
     }
   `

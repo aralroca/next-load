@@ -2,7 +2,7 @@ import type webpack from 'webpack'
 
 import { parseFile, getDefaultExport, extensionsRgx } from './utils'
 import { LoaderOptions } from './types'
-import supportLoadAndHydrate from './supportLoadAndHydrate'
+import transformer from './transformer'
 
 export default function loader(
   this: webpack.LoaderContext<LoaderOptions>,
@@ -22,5 +22,5 @@ export default function loader(
   // "export default" on the page
   if (!defaultExport) return rawCode
 
-  return supportLoadAndHydrate(pagePkg, { pageNoExt, normalizedResourcePath, normalizedPagesPath })
+  return transformer(pagePkg, { pageNoExt, normalizedResourcePath, normalizedPagesPath })
 }
