@@ -25,9 +25,7 @@
 <img src="https://img.shields.io/twitter/follow/aralroca?style=social&logo=twitter"
             alt="follow on Twitter"></a>
 
-## Getting started
-
-**Next Load** is a simple and lightweight library that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
+**Next Load** is a simple and lightweight library (~300B) that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
 
 With Next Load, you can **load** data in one place, **hydrate** some parts, and **consume** everywhere, all while keeping your code organized and easy to maintain.
 
@@ -36,6 +34,8 @@ With Next Load, you can **load** data in one place, **hydrate** some parts, and 
 | `load`    | Loads data in one place.                                           | Server/client pages|
 | `hydrate` | Facilitates the transfer of server data defined in the load function to client components. | Server pages                       |
 | `consume` | Enables the consumption of data loaded by the load method.         | Server/client pages/components/helpers    |
+
+## Getting started
 
 To install this library, you can use npm or yarn:
 

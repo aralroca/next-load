@@ -32,7 +32,7 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   const loadExport = getNamedExport(pagePkg, 'load')
   const hydrateExport = getNamedExport(pagePkg, 'hydrate')
   const pageWithoutLoadExport = isPage && !loadExport
-  const load = `Promise.resolve(${loadExport ? 'load()' : ''})`
+  const load = `Promise.resolve(${loadExport ? 'load(props)' : ''})`
   let hydrate = `Promise.resolve(${hydrateExport ? 'hydrate(_data)' : '_data'})`
 
   // The "hydrate export" function is exclusively accessible within a server page

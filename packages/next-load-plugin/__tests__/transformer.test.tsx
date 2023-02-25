@@ -109,6 +109,27 @@ describe('transformer', () => {
       const div = screen.getByTestId('test')
       expect(div.textContent).toBe('Page: LOAD WORKS')
     })
+    it('SHOULD receive the page props as params to load better the data in a SERVER /page', async () => {
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = async (pageProps) => ({ text: 'LOAD WORKS IN '+pageProps.text.toUpperCase() });
+
+        export default function Page(pageProps) {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">{pageProps.text}: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page({ text: 'Page' })}</>)
+      const div = screen.getByTestId('test')
+      expect(div.textContent).toBe('Page: LOAD WORKS IN PAGE')
+    })
     it('SHOULD transform the SERVER /page adding element to hydrate to clients', async () => {
       const pagePkg = parseCode('jsx', `
         import React from 'react';
@@ -179,6 +200,7 @@ describe('transformer', () => {
       const div = await screen.findByTestId('test')
       expect(div.textContent).toBe('Client page: LOAD WORKS')
     })
+
     it('SHOULD also work the "load" without promise in the CLIENT /page', async () => {
       const pagePkg = parseCode('jsx', `
         "use client";
@@ -200,6 +222,28 @@ describe('transformer', () => {
       render(<ClientPage />);
       const div = await screen.findByTestId('test')
       expect(div.textContent).toBe('Client page: LOAD WORKS')
+    })
+    it('SHOULD receive the page props as params to load better the data in a CLIENT /page', async () => {
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = async (pageProps) => ({ text: 'LOAD WORKS IN '+pageProps.text.toUpperCase() });
+
+        export default function Page(pageProps) {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">{pageProps.text}: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const ClientPage = await importFromString(output).then(m => m.default)
+      render(<ClientPage text="Client Page" />)
+      const div = await screen.findByTestId('test')
+      expect(div.textContent).toBe('Client Page: LOAD WORKS IN CLIENT PAGE')
     })
     it('SHOULD NOT add an element to hydrate to clients in a CLIENT page', async () => {
       const pagePkg = parseCode('jsx', `
