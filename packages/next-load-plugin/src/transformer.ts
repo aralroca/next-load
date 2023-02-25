@@ -20,6 +20,7 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   const isClientCode = clientLine.some(line => codeWithoutComments.startsWith(line))
   const isPage = pageNoExt.endsWith('/page') && normalizedResourcePath.startsWith(normalizedPagesPath)
 
+  // server components are not needed to be transformed
   if (!isPage && !isClientCode) return code
 
   const hash = Date.now().toString(16)
@@ -28,21 +29,21 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   // Removes the export default from the page
   // and tells under what name we can get the old export
   const pageVariableName = interceptExport(pagePkg, 'default', `__Next_Load__Page__${hash}__`)
-
   const loadExport = getNamedExport(pagePkg, 'load')
   const hydrateExport = getNamedExport(pagePkg, 'hydrate')
   const pageWithoutLoadExport = isPage && !loadExport
   const load = `Promise.resolve(${loadExport ? 'load()' : ''})`
   let hydrate = `Promise.resolve(${hydrateExport ? 'hydrate(_data)' : '_data'})`
 
-  if (isPage && !isClientCode && !loadExport && hydrateExport) {
-    console.log(colorRed('[next-load] ERROR '), colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`))
-    return code
-  }
-
+  // The "hydrate export" function is exclusively accessible within a server page
   if (isPage && isClientCode && hydrateExport) {
     console.log(colorRed('[next-load] ERROR '), colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`))
     hydrate = `Promise.resolve(_data)`
+  }
+
+  // The function "hydrate export" can only be accessed through the use of "load export"
+  if (isPage && !isClientCode && !loadExport && hydrateExport) {
+    console.log(colorRed('[next-load] ERROR '), colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`))
   }
 
   // No need any transformation
