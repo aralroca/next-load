@@ -3,6 +3,15 @@ import { ParsedFilePkg, Transformer } from './types'
 
 export const extensionsRgx = /\.(tsx|ts|js|mjs|jsx)$/
 
+const colorEnabled =
+  process.env.NODE_DISABLE_COLORS == null &&
+  process.env.NO_COLOR == null &&
+  process.env.TERM !== 'dumb' &&
+  process.env.FORCE_COLOR !== '0'
+
+export const colorRed = (c: string) => (colorEnabled ? `\x1b[31m${c}\x1b[0m` : c)
+export const colorOrange = (c: string) => (colorEnabled ? `\x1b[33m${c}\x1b[0m` : c)
+
 /**
  * @param basePath - Path to the root of the target project
  * @param cutDependencies - Whether to not include imports and the standard library

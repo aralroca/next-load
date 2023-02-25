@@ -1,6 +1,6 @@
 import React from 'react'
 import transformer from '../src/transformer'
-import { parseCode } from '../src/utils'
+import { colorOrange, colorRed, parseCode } from '../src/utils'
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -23,9 +23,12 @@ const outsideAppDir = {
   normalizedPagesPath: '/Users/username/Projects/nextjs-blog/app',
 }
 
+const moreHydrateInfo = 'For more information, please refer to the documentation provided at https://github.com/aralroca/next-load#hydrate.'
+
 describe('transformer', () => {
   beforeEach(() => {
     globalThis.__NEXT_LOAD__ = undefined
+    jest.clearAllMocks();
   })
 
   describe('WITHOUT load export', () => {
@@ -275,6 +278,84 @@ describe('transformer', () => {
       const div = screen.getByTestId('test')
       expect(div.textContent).toBe('RESULT: HYDRATE WORKS')
     });
+  });
+
+  describe('WITH hydrate export', () => {
+    it('SHOULD NOT be possible to use hydrate without load in a SERVER /page', async () => {
+      console.log = jest.fn()
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const hydrate = async () => ({ text: 'HYDRATE WORKS' });
+
+        export default function Page() {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Page: {text}</div>; 
+        }
+      `)
+      const code = pagePkg.getCode()
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      expect(output).toBe(code)
+      const prefix = colorRed('[next-load] ERROR ')
+      const message = colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`)
+      expect(console.log).toHaveBeenCalledWith(prefix, message)
+    });
+    it('SHOULD NOT be possible to use hydrate with load in a CLIENT /page', async () => {
+      console.log = jest.fn()
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = async () => ({ text: 'LOAD WORKS' });
+        export const hydrate = async () => ({ text: 'HYDRATE WORKS' });
+
+        export default function Page() {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Page: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = await screen.findByTestId('test')
+      expect(div.textContent).toBe('Page: LOAD WORKS')
+      const prefix = colorRed('[next-load] ERROR ')
+      const message = colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`)
+      expect(console.log).toHaveBeenCalledWith(prefix, message)
+    });
+    it('SHOULD be possible to load data inside a SERVER /page and hydrate the hydrate data', async () => {
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { text: string };
+
+        export const load = async () => ({ text: 'LOAD WORKS' });
+        export const hydrate = async () => ({ text: 'HYDRATE WORKS' });
+
+        export default function Page() {
+          const { text } = consume<DataType>();
+          return <div data-testid="test">Page: {text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page()}</>)
+      const div = screen.getByTestId('test')
+      expect(div.textContent).toBe('Page: LOAD WORKS')
+      const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement.dataset.page).toBe('/')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"HYDRATE WORKS\"}')
+    })
   });
 });
 

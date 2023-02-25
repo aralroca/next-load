@@ -1,10 +1,18 @@
 import { ParsedFilePkg } from "./types";
-import { interceptExport, getNamedExport, removeCommentsFromCode } from "./utils";
-import ts from "typescript";
+import { interceptExport, getNamedExport, removeCommentsFromCode, colorRed, colorOrange } from "./utils";
 
 const clientLine = ['"use client"', "'use client'"]
 
-type TransformParams = { code: string, hash: string, pageVariableName: string, pathname?: string, load?: ts.Expression | ts.Declaration }
+type TransformParams = {
+  code: string,
+  hash: string,
+  pageVariableName: string,
+  pathname?: string,
+  load?: string,
+  hydrate?: string,
+}
+
+const moreHydrateInfo = 'For more information, please refer to the documentation provided at https://github.com/aralroca/next-load#hydrate.'
 
 export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
   let code = pagePkg.getCode()
@@ -21,8 +29,21 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   // and tells under what name we can get the old export
   const pageVariableName = interceptExport(pagePkg, 'default', `__Next_Load__Page__${hash}__`)
 
-  const load = getNamedExport(pagePkg, 'load')
-  const pageWithoutLoadExport = isPage && !load
+  const loadExport = getNamedExport(pagePkg, 'load')
+  const hydrateExport = getNamedExport(pagePkg, 'hydrate')
+  const pageWithoutLoadExport = isPage && !loadExport
+  const load = `Promise.resolve(${loadExport ? 'load()' : ''})`
+  let hydrate = `Promise.resolve(${hydrateExport ? 'hydrate(_data)' : '_data'})`
+
+  if (isPage && !isClientCode && !loadExport && hydrateExport) {
+    console.log(colorRed('[next-load] ERROR '), colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`))
+    return code
+  }
+
+  if (isPage && isClientCode && hydrateExport) {
+    console.log(colorRed('[next-load] ERROR '), colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`))
+    hydrate = `Promise.resolve(_data)`
+  }
 
   // No need any transformation
   if (!pageVariableName || pageWithoutLoadExport) return code
@@ -31,25 +52,26 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   code = pagePkg.getCode()
 
   if (isClientCode && !isPage) return transformClientComponent({ code, hash, pageVariableName })
-  if (isClientCode && isPage) return transformClientPage({ code, hash, pageVariableName, pathname, load })
-  return transformServerPage({ code, hash, pageVariableName, pathname, load })
+  if (isClientCode && isPage) return transformClientPage({ code, hash, pageVariableName, pathname, load, hydrate })
+  return transformServerPage({ code, hash, pageVariableName, pathname, load, hydrate })
 }
 
-function transformServerPage({ code, hash, pageVariableName, pathname, load }: TransformParams) {
+function transformServerPage({ code, hash, pageVariableName, pathname, load, hydrate }: TransformParams) {
   return `
   import * as __react from 'react'
 
   ${code}
 
   export default async function __Next_Load_new__${hash}__(props) {
-    const _data = ${load ? 'await load()' : 'null'}
+    const _data = await ${load}
+    const _dataToHydrate = await ${hydrate}
     globalThis.__NEXT_LOAD__ = { hydrate: _data, page: '${pathname}' }
     return (
       <>
         <div 
           id="__NEXT_LOAD_DATA__"
           data-testid="__NEXT_LOAD_DATA__"
-          data-hydrate={JSON.stringify(_data)}
+          data-hydrate={JSON.stringify(_dataToHydrate)}
           data-page="${pathname}"
         />
         <${pageVariableName} {...props} />
@@ -81,7 +103,7 @@ function transformClientPage({ code, hash, pageVariableName, pathname, load }: T
         const shouldLoad = page !== window.__NEXT_LOAD__?.page
         if (!shouldLoad) return
 
-        Promise.resolve(${load ? 'load()' : ''}).then(_data => {
+        ${load}.then(_data => {
           window.__NEXT_LOAD__ = { hydrate: _data, page }
           forceUpdate()
         })
