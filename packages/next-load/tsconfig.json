@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "ES2020",
+    "target": "es5",
+    "removeComments": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "jsx": "react",
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "declaration": true,
+    "lib": [
+      "esnext",
+      "dom"
+    ],
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./lib",
+    "declarationDir": "./"
+  },
+  "include": [
+    "./lib/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
+}

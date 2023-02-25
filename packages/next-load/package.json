@@ -37,7 +37,7 @@
   "unpkg": "lib/index.umd.js",
   "jest": {
     "preset": "ts-jest",
-    "testEnvironment": "node"
+    "testEnvironment": "jest-environment-jsdom"
   },
   "peerDependencies": {
     "next": ">= 13.0.0",

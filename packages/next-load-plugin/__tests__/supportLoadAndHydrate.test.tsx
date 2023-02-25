@@ -146,12 +146,12 @@ describe('supportLoadAndHydrate', () => {
         export function load() { return ${bigDataSize} }
         export default function Page() { return <div>Page</div>; }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/product/[id]/page', ...insideAppDir }
       const output = supportLoadAndHydrate(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
-      expect(hydrateElement.dataset.page).toBe('/')
+      expect(hydrateElement.dataset.page).toBe('/product/[id]')
       expect(JSON.parse(hydrateElement.dataset.hydrate!)).toHaveLength(arrayLength)
     })
     it('SHOULD be possible to load this data inside a CLIENT /page', async () => {
@@ -219,6 +219,62 @@ describe('supportLoadAndHydrate', () => {
       const hydrateElement = screen.queryByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement).toBe(null)
     })
+    it('SHOULD NOT transform the SERVER /component', () => {
+      const pagePkg = parseCode('jsx', `
+        export async function load() { return { text: 'SHOULD NOT BE USED' };        
+        export default function Page() { return <div>Page</div>; }
+      `)
+      const code = pagePkg.getCode()
+      const options = { pageNoExt: '/component', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      expect(output).toBe(code)
+    });
+    it('SHOULD transform the CLIENT /component to hydrate but not use the load', async () => {
+      const element = document.createElement('div')
+      element.dataset.hydrate = 'HYDRATE WORKS'
+      document.getElementById = jest.fn().mockReturnValue(element)
+      const pagePkg = parseCode('jsx', `
+          "use client";
+          import React from 'react';
+          import { consume } from 'next-load';
+          
+          export async function load() { return { text: 'SHOULD NOT BE USED' }; }
+
+          export default function Component() {
+            const text = consume<string>(); 
+            return <h1 data-testid="test">RESULT: {text}</h1> 
+          }
+        `)
+      const options = { pageNoExt: '/component', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = screen.getByTestId('test')
+      expect(div.textContent).toBe('RESULT: HYDRATE WORKS')
+    });
+    it('SHOULD transform the CLIENT /component to hydrate but not use the load in outside app dir components', async () => {
+      const element = document.createElement('div')
+      element.dataset.hydrate = 'HYDRATE WORKS'
+      document.getElementById = jest.fn().mockReturnValue(element)
+      const pagePkg = parseCode('jsx', `
+          "use client";
+          import React from 'react';
+          import { consume } from 'next-load';
+          
+          export async function load() { return { text: 'SHOULD NOT BE USED' }; }
+
+          export default function Component() {
+            const text = consume<string>(); 
+            return <h1 data-testid="test">RESULT: {text}</h1> 
+          }
+        `)
+      const options = { pageNoExt: '/some/component', ...outsideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = screen.getByTestId('test')
+      expect(div.textContent).toBe('RESULT: HYDRATE WORKS')
+    });
   });
 });
 

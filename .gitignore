@@ -1,3 +1,4 @@
 dist
+packages/next-load/lib
 node_modules
 toremove-*.js

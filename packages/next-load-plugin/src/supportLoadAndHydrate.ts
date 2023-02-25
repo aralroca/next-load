@@ -13,7 +13,7 @@ export default function supportLoadAndHydrate(pagePkg: ParsedFilePkg, { pageNoEx
   if (!isPage && !isClientCode) return code
 
   const hash = Date.now().toString(16)
-  const pathname = pageNoExt.replace('/page', '/')
+  const pathname = pageNoExt.replace('/page', '') || '/'
 
   // Removes the export default from the page
   // and tells under what name we can get the old export
@@ -67,29 +67,12 @@ function templateAppDirClientComponent({ code, hash, pageVariableName }: ClientT
   clientLine.forEach(line => { clientCode = clientCode.replace(line, '') })
 
   return `${topLine}
-    import * as __react from 'react'
+    import { _useHydrate } from 'next-load'
 
     ${clientCode}
 
     export default function __Next_Load_new__${hash}__(props) {
-      const forceUpdate = __react.useReducer(() => [])[1]
-      const isClient = typeof window !== 'undefined'
-
-      if (isClient && !window.__NEXT_LOAD__) {
-        window.__NEXT_LOAD__ = {}
-        update(false)
-      }
-
-      __react.useEffect(update)
-      function update(rerender = true) {
-        const el = document.getElementById('__NEXT_LOAD_DATA__')
-        if (!el) return
-        const { hydrate, page } = el.dataset
-        const shouldRerender = page !== window.__NEXT_LOAD__.page
-        window.__NEXT_LOAD__ = { hydrate, page }
-        if (shouldRerender && rerender) forceUpdate()
-      }
-
+      _useHydrate()
       return <${pageVariableName} {...props} />
     }
   `
