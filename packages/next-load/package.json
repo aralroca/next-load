@@ -17,6 +17,9 @@
     "hydrate",
     "consume"
   ],
+  "files": [
+    "lib"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/aralroca/next-load.git"

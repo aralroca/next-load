@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { spawn } = require('child_process');
+const { execSync } = require('child_process');
 const packageJson = require('../package.json');
 const packageJsonNextLoad = require('../packages/next-load/package.json');
 const packageJsonNextLoadplugin = require('../packages/next-load-plugin/package.json');
@@ -16,27 +16,13 @@ if (packageJson.version !== packageJsonNextLoad.version || packageJson.version !
 
 console.log(`Current version: ${packageJson.version}`);
 
+execSync('npm adduser', { stdio: 'inherit' });
+
 if (prerelease) {
   console.log('Publishing prerelease version');
-  const npmPublish = spawn('npm', ['publish', '--tag', 'next'], { stdio: 'inherit' });
-  npmPublish.on('data', (data) => console.log(data));
-  npmPublish.on('close', (code) => {
-    if (code !== 0) {
-      console.log(`npm publish failed with code ${code}`);
-      return;
-    }
-    console.log('Prerelease published successfully')
-  });
+  execSync('npm publish --tag next', { stdio: 'inherit' });
   return
 }
 
 console.log('Publishing release version');
-const npmPublish = spawn('npm', ['publish'], { stdio: 'inherit' });
-npmPublish.on('data', (data) => console.log(data));
-npmPublish.on('close', (code) => {
-  if (code !== 0) {
-    console.log(`npm publish failed with code ${code}`);
-    return;
-  }
-  console.log('Release published successfully')
-});
+execSync('npm publish', { stdio: 'inherit' });
