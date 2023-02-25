@@ -136,6 +136,24 @@ describe('supportLoadAndHydrate', () => {
       expect(hydrateElement.dataset.page).toBe('/')
       expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
     })
+    it('SHOULD be possible to hydrate a big array of data in SERVER /page', async () => {
+      const arrayLength = 100000
+      // ~589kb
+      const bigDataSize = JSON.stringify(Array.from({ length: arrayLength }).map((_, i) => i))
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+
+        export function load() { return ${bigDataSize} }
+        export default function Page() { return <div>Page</div>; }
+      `)
+      const options = { pageNoExt: '/page', ...insideAppDir }
+      const output = supportLoadAndHydrate(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page()}</>)
+      const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement.dataset.page).toBe('/')
+      expect(JSON.parse(hydrateElement.dataset.hydrate!)).toHaveLength(arrayLength)
+    })
     it('SHOULD be possible to load this data inside a CLIENT /page', async () => {
       const pagePkg = parseCode('jsx', `
         "use client";
