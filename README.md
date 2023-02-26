@@ -29,7 +29,7 @@
 
 With Next Load, you can **load** data in one place, **hydrate** some parts, and **consume** everywhere, all while keeping your code organized and easy to maintain.
 
-> ❗️ Until version 1.0 we do not recommend that you use it in production.  Missing support for layout.js, template.js, route.js, loading.js, error.js, global-error.js, and not-found.js. For now, until v1.0 is only available for the page and its subcomponents and we will support the rest in the next versions.
+> ❗️ Until version 1.0 we do not recommend that you use it in production.  Missing support for layout.js, template.js, route.js, loading.js, error.js, global-error.js, and not-found.js. For now, until v1.0 is only available for the page and its subcomponents / helpers and we will support the rest in the next versions.
 
 | Method  | Description                                                        | Usage                             |
 |---------|--------------------------------------------------------------------|-----------------------------------|
