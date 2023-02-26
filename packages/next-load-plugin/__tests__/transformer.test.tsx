@@ -64,6 +64,20 @@ describe('transformer', () => {
       expect(output).toBe(code)
     });
 
+    it('SHOULD NOT transform the HELPER /page and consume should work', async () => {
+      globalThis.__NEXT_LOAD__ = { hydrate: ['next-load'] }
+      const pagePkg = parseCode('jsx', `
+        import { consume } from 'next-load';
+        export default function helper() { return new Set(consume()); }
+      `)
+      const code = pagePkg.getCode()
+      const options = { pageNoExt: '/utils/helper', ...outsideAppDir }
+      const output = transformer(pagePkg, options)
+      const helper = await importFromString(output).then(m => m.default)
+      expect(output).toBe(code)
+      expect(helper().has('next-load')).toBeTruthy()
+    });
+
     it('SHOULD transfrom a CLIENT /component to hydrate if needs', async () => {
       const element = document.createElement('div')
       element.dataset.hydrate = 'HYDRATE WORKS'
