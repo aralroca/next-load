@@ -18,7 +18,8 @@
     "consume"
   ],
   "files": [
-    "lib"
+    "lib",
+    "index.d.ts"
   ],
   "repository": {
     "type": "git",
@@ -35,7 +36,7 @@
     "require": "./lib/index.cjs",
     "default": "./lib/index.modern.js"
   },
-  "types": "lib/types.d.ts",
+  "types": "index.d.ts",
   "module": "lib/index.module.js",
   "unpkg": "lib/index.umd.js",
   "jest": {

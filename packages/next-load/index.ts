@@ -33,5 +33,3 @@ export function _useHydrate() {
     if (shouldRerender && rerender) forceUpdate()
   }
 }
-
-export default consume

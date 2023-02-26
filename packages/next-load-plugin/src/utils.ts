@@ -1,7 +1,7 @@
 import ts from 'typescript'
 import { ParsedFilePkg, Transformer } from './types'
 
-export const extensionsRgx = /\.(tsx|ts|js|mjs|jsx)$/
+export const extensionsRgx = /\.(tsx|ts|js|cjs|mjs|jsx)$/
 
 const colorEnabled =
   process.env.NODE_DISABLE_COLORS == null &&

@@ -25,9 +25,11 @@
 <img src="https://img.shields.io/twitter/follow/aralroca?style=social&logo=twitter"
             alt="follow on Twitter"></a>
 
-**Next Load** is a simple and lightweight library (~300B) that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
+**Next Load** is a simple and lightweight library (~400B) that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
 
 With Next Load, you can **load** data in one place, **hydrate** some parts, and **consume** everywhere, all while keeping your code organized and easy to maintain.
+
+> ❗️ Until version 1.0 we do not recommend that you use it in production.  Missing support for layout.js, template.js, route.js, loading.js, error.js, global-error.js, and not-found.js. For now, until v1.0 is only available for the page and its subcomponents and we will support the rest in the next versions.
 
 | Method  | Description                                                        | Usage                             |
 |---------|--------------------------------------------------------------------|-----------------------------------|
@@ -56,7 +58,8 @@ To add the `next-load-plugin` to your Next.js project, you need to modify the `n
 const nextLoad = require('next-load-plugin');
 
 module.exports = nextLoad({
-  // Your Next.js configuration options go here
+    experimental: { appDir: true },
+    // Your Next.js configuration options go here
 });
 ```
 
