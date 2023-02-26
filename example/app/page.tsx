@@ -5,5 +5,6 @@ export function load() {
 }
 
 export default function Page() {
-  return consume() ?? 'No!😅';
+  const text = consume<string>();
+  return <h1>{text}</h1>;
 }

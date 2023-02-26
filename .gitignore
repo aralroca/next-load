@@ -4,3 +4,4 @@ packages/next-load/index.d.ts
 node_modules
 toremove-*.js
 .next
+.vscode
