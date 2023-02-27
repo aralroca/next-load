@@ -1,24 +1,33 @@
 export default {
-  load: {
-    '*': getUser,
+  user: {
+    pages: ['/', '/about', '/contact', '/blog/[slug]'],
+    load: getUser,
+    hydrate: mapUserDataForClientSide,
   },
-  hydrate: {
-    '*': getUserName,
-  }
+  posts: {
+    pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+    load: getPosts,
+  },
 }
 
 type User = {
-  displayName: string
+  displayName?: string
   username: string
 }
 
-async function getUser() {
-  return {
-    displayName: 'Works in next.load.ts',
-    username: 'next-load-example'
-  }
+type Post = {
+  title: string
+  content: string
 }
 
-async function getUserName(user: User) {
-  return user.displayName
+async function getUser(): Promise<User> {
+  return { username: 'aralroca', displayName: 'Aral Roca' }
+}
+
+function mapUserDataForClientSide(user: User): User {
+  return { username: user.username }
+}
+
+async function getPosts(): Promise<Post[]> {
+  return [{ title: 'My first post', content: 'Hello world!' }]
 }

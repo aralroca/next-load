@@ -13,13 +13,14 @@ describe('utils', () => {
         import some from 'some';
 
         export default {
-          load: {
-            '*': () => {},
-            '/some/path': async () => 9,
+          user: {
+            pages: ['/', '/about', '/contact', '/blog/[slug]'],
+            load: async () => ({ username: 'aralroca', displayName: 'Aral Roca' }),
+            hydrate: (user) => ({ username: user.username })
           },
-          hydrate: {
-            '*': () => {},
-            '/some/another/path': async () => [1, 2, 3],
+          posts: {
+            pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+            load: async () => [{ title: 'My first post', content: 'Hello world!' }],
           },
         }
       `;
@@ -27,20 +28,21 @@ describe('utils', () => {
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
       const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
-      expect(loaders).toEqual(['*', '/some/path']);
-      expect(hydraters).toEqual(['*', '/some/another/path']);
+      expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
+      expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
     it('should work with module.exports', async () => {
       const dir = '/path/to/directory';
       const code = `
         module.exports = {
-          load: {
-            '*': () => {},
-            '/some/path': async () => 9,
+          user: {
+            pages: ['/', '/about', '/contact', '/blog/[slug]'],
+            load: async () => ({ username: 'aralroca', displayName: 'Aral Roca' }),
+            hydrate: (user) => ({ username: user.username })
           },
-          hydrate: {
-            '*': () => {},
-            '/some/another/path': async () => [1, 2, 3],
+          posts: {
+            pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+            load: async () => [{ title: 'My first post', content: 'Hello world!' }],
           },
         }
       `;
@@ -48,16 +50,16 @@ describe('utils', () => {
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
       const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
-      expect(loaders).toEqual(['*', '/some/path']);
-      expect(hydraters).toEqual(['*', '/some/another/path']);
+      expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
+      expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
     it('should work without loaders', async () => {
       const dir = '/path/to/directory';
       const code = `
         export default {
-          hydrate: {
-            '*': () => {},
-            '/some/another/path': async () => [1, 2, 3],
+          user: {
+            pages: ['/', '/about', '/contact', '/blog/[slug]'],
+            hydrate: (user) => ({ username: user.username })
           },
         }
       `;
@@ -66,15 +68,19 @@ describe('utils', () => {
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
       const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
       expect(loaders).toEqual([]);
-      expect(hydraters).toEqual(['*', '/some/another/path']);
+      expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
     it('should work without hydraters', async () => {
       const dir = '/path/to/directory';
       const code = `
         export default {
-          load: {
-            '*': () => {},
-            '/some/path': async () => [1, 2, 3],
+          user: {
+            pages: ['/', '/about', '/contact', '/blog/[slug]'],
+            load: async () => ({ username: 'aralroca', displayName: 'Aral Roca' }),
+          },
+          posts: {
+            pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+            load: async () => [{ title: 'My first post', content: 'Hello world!' }],
           },
         }
       `;
@@ -82,12 +88,42 @@ describe('utils', () => {
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
       const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
-      expect(loaders).toEqual(['*', '/some/path']);
+      expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual([]);
     });
-    it('should work without loaders nor hydraters', async () => {
+    it('should work with empty object as export', async () => {
       const dir = '/path/to/directory';
       const code = 'export default {}';
+      const tempFile = `${dir}/next.load.js` as any;
+      jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
+      jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      expect(loaders).toEqual([]);
+      expect(hydraters).toEqual([]);
+    });
+    it('should work with undefined as export', async () => {
+      const dir = '/path/to/directory';
+      const code = 'export default undefined';
+      const tempFile = `${dir}/next.load.js` as any;
+      jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
+      jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      expect(loaders).toEqual([]);
+      expect(hydraters).toEqual([]);
+    });
+    it('should work without an export', async () => {
+      const dir = '/path/to/directory';
+      const code = 'const example = true';
+      const tempFile = `${dir}/next.load.js` as any;
+      jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
+      jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      expect(loaders).toEqual([]);
+      expect(hydraters).toEqual([]);
+    });
+    it('should work with empty loaders and hydraters as export', async () => {
+      const dir = '/path/to/directory';
+      const code = 'export default { example: { pages: ["/"]} }';
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);

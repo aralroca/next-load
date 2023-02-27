@@ -199,7 +199,7 @@ export function resolveIdentifier(
 ): ts.Declaration | ts.Identifier {
   const identifierSymbol = getSymbol(filePkg, identifier)
 
-  if (identifierSymbol && Array.isArray(identifierSymbol.declarations)) {
+  if (identifierSymbol && Array.isArray(identifierSymbol.declarations) && identifierSymbol.declarations.length > 0) {
     const identifierDeclaration = identifierSymbol.declarations[0]
 
     if (ts.isVariableDeclaration(identifierDeclaration)) {
@@ -485,39 +485,50 @@ export function getLoadersAndHydratorsLists(dir: string) {
   const nextLoadConfigPkg = parseFile(dir, nextLoadConfigFilename)
   const nextLoadConfigExport = getDefaultExport(nextLoadConfigPkg)
 
-  // module.exports = { load, hydrate }
   if (!nextLoadConfigExport) {
-    const { load, hydrate } = getCommonJSModuleExports(nextLoadConfigPkg)
-    if (load) {
-      ts.forEachChild(load, (n) => {
-        if (!ts.isPropertyAssignment(n)) return
-        const text = removeQuotes(n.name.getText())
-        loaders.push(text)
-      })
-    }
-    if (hydrate) {
-      ts.forEachChild(hydrate, (n) => {
-        if (!ts.isPropertyAssignment(n)) return
-        const text = removeQuotes(n.name.getText())
-        hydraters.push(text)
-      })
-    }
-    return { loaders, hydraters }
+    const exports = getCommonJSModuleExports(nextLoadConfigPkg)
+    const exportsValues = Object.values(exports)
+
+    if (exportsValues.length === 0) return { loaders, hydraters }
+
+    // module.exports = { load, hydrate }
+    exportsValues.forEach(node => {
+      const { pages, load, hydrate } = getPagesFromNode(node)
+      if (load) loaders.push(...pages)
+      if (hydrate) hydraters.push(...pages)
+    })
+
+    return { loaders: uniqueArray(loaders), hydraters: uniqueArray(hydraters) }
   }
 
   // export default = { load, hydrate }
   ts.forEachChild(nextLoadConfigExport, (node) => {
     if (!ts.isPropertyAssignment(node)) return
-    const name = node.name.getText()
-
-    ts.forEachChild(node.initializer, (n) => {
-      if (!ts.isPropertyAssignment(n)) return
-      const text = removeQuotes(n.name.getText())
-      name === 'load' ? loaders.push(text) : hydraters.push(text)
-    })
+    const { pages, load, hydrate } = getPagesFromNode(node.initializer)
+    if (load) loaders.push(...pages)
+    if (hydrate) hydraters.push(...pages)
   })
 
-  return { loaders, hydraters }
+  return { loaders: uniqueArray(loaders), hydraters: uniqueArray(hydraters) }
+}
+
+function getPagesFromNode(node: ts.Node) {
+  const pages: string[] = []
+  let load = false
+  let hydrate = false
+  ts.forEachChild(node, (n) => {
+    if (!ts.isPropertyAssignment(n)) return
+    const text = removeQuotes(n.name.getText())
+    if (text === 'pages') {
+      ts.forEachChild(n.initializer, (n) => {
+        if (!ts.isStringLiteral(n)) return
+        pages.push(n.text)
+      })
+    }
+    if (text === 'load') load = true
+    if (text === 'hydrate') hydrate = true
+  })
+  return { pages, load, hydrate }
 }
 
 export function removeCommentsFromCode(code: string) {
@@ -526,4 +537,8 @@ export function removeCommentsFromCode(code: string) {
 
 function removeQuotes(str: string) {
   return str.replace(/^['|"|`]+|['|"|`]+$/g, '')
+}
+
+function uniqueArray<T>(arr: T[]) {
+  return Array.from(new Set(arr))
 }
