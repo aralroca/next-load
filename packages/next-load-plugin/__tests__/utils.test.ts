@@ -31,6 +31,30 @@ describe('utils', () => {
       expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
+    it('should work with pages as RegExp in default export', async () => {
+      const dir = '/path/to/directory';
+      const code = `
+        import some from 'some';
+
+        export default {
+          user: {
+            pages: ['/', '/about', '/contact', new RegExp('/example/[a-z]+')],
+            load: async () => ({ username: 'aralroca', displayName: 'Aral Roca' }),
+            hydrate: (user) => ({ username: user.username })
+          },
+          posts: {
+            pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+            load: async () => [{ title: 'My first post', content: 'Hello world!' }],
+          },
+        }
+      `;
+      const tempFile = `${dir}/next.load.js` as any;
+      jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
+      jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      expect(loaders).toEqual(['/', '/about', '/contact', /\/example\/[a-z]+/, '/blog/[slug]', '/blog/[slug]/comments']);
+      expect(hydraters).toEqual(['/', '/about', '/contact', /\/example\/[a-z]+/,]);
+    });
     it('should work with module.exports', async () => {
       const dir = '/path/to/directory';
       const code = `
@@ -52,6 +76,30 @@ describe('utils', () => {
       const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
       expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
+    });
+    it('should work with pages as RegExp in module.exports', async () => {
+      const dir = '/path/to/directory';
+      const code = `
+        const some = require('some');
+
+        module.exports = {
+          user: {
+            pages: ['/', '/about',new RegExp('/contact/[a-z]+'), /\\/example\\/[a-z]+/,
+            load: async () => ({ username: 'aralroca', displayName: 'Aral Roca' }),
+            hydrate: (user) => ({ username: user.username })
+          },
+          posts: {
+            pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+            load: async () => [{ title: 'My first post', content: 'Hello world!' }],
+          },
+        }
+      `;
+      const tempFile = `${dir}/next.load.js` as any;
+      jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
+      jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      expect(loaders).toEqual(['/', '/about', new RegExp('/contact/[a-z]+'), new RegExp('/example/[a-z]+'), '/blog/[slug]', '/blog/[slug]/comments']);
+      expect(hydraters).toEqual(['/', '/about', new RegExp('/contact/[a-z]+'), new RegExp('/example/[a-z]+'),]);
     });
     it('should work without loaders', async () => {
       const dir = '/path/to/directory';

@@ -521,8 +521,13 @@ function getPagesFromNode(node: ts.Node) {
     const text = removeQuotes(n.name.getText())
     if (text === 'pages') {
       ts.forEachChild(n.initializer, (n) => {
-        if (!ts.isStringLiteral(n)) return
-        pages.push(n.text)
+        const innerText = n.getText().trim()
+        if (innerText === 'load') load = true
+        if (innerText === 'hydrate') hydrate = true
+        if (ts.isStringLiteral(n)) pages.push(n.text)
+        else if (n.kind === ts.SyntaxKind.NewExpression || n.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+          pages.push(eval(innerText))
+        }
       })
     }
     if (text === 'load') load = true
