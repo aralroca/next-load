@@ -4,17 +4,23 @@ import type webpack from 'webpack'
 import type { NextConfig } from 'next'
 
 import { LoaderOptions } from './types'
-import { extensionsRgx } from './utils'
+import { extensionsRgx, getLoadersAndHydratorsLists } from './utils'
 
 const possiblePageDirs = ['app', 'src/app']
 
 function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
+  if (!nextConfig?.experimental?.appDir) return nextConfig
+
   const basePath = pkgDir()
 
   // NEXT_LOAD_PATH env is supported both relative and absolute path
   const dir = path.resolve(
     path.relative(basePath, process.env.NEXT_LOAD_PATH || '.')
   )
+
+  // Loaders & Hydrators
+  const { loaders, hydraters } = getLoadersAndHydratorsLists(dir)
+  console.log({ loaders, hydraters })
 
   const pagesInDir = possiblePageDirs.find((pageDir) =>
     fs.existsSync(path.join(dir, pageDir))
@@ -36,8 +42,14 @@ function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
           : conf
 
       // Creating some "slots" if they don't exist
+      if (!config.resolve) config.resolve = {}
       if (!config.module) config.module = {}
       if (!config.module.rules) config.module.rules = []
+
+      config.resolve.alias = {
+        ...(config.resolve.alias || {}),
+        '@next-load-root': path.resolve(dir),
+      }
 
       config.module.rules.push({
         test: extensionsRgx,

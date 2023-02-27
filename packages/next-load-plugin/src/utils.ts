@@ -1,3 +1,4 @@
+import fs from 'fs'
 import ts from 'typescript'
 import { ParsedFilePkg, Transformer } from './types'
 
@@ -441,6 +442,88 @@ export function interceptExport(
   return finalLocalName
 }
 
+/**
+ * This function is used to get a module.exports nodes from a filePkg.
+ *
+ * @param filePkg - The file package to search
+ * @returns The module.exports object literal expression if it exists
+ */
+export function getCommonJSModuleExports(filePkg: ParsedFilePkg) {
+  const exports: { [key: string]: ts.Node } = {}
+
+  filePkg.transform((sourceFile, context) => {
+    function visitor(node: ts.Node): ts.Node {
+      // `module.exports = ...`
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        const left = node.left
+        if (ts.isPropertyAccessExpression(left) && left.expression.getText() === 'module' && left.name.getText() === 'exports') {
+          const right = node.right
+          if (ts.isObjectLiteralExpression(right)) {
+            right.properties.forEach((p) => {
+              if (ts.isPropertyAssignment(p)) {
+                const name = p.name.getText()
+                exports[name] = p.initializer
+              }
+            })
+          }
+        }
+      }
+
+      return ts.visitEachChild(node, visitor, context)
+    }
+    return ts.visitNode(sourceFile, visitor)
+  })
+
+  return exports
+}
+
+export function getLoadersAndHydratorsLists(dir: string) {
+  const filename = 'next.load'
+  const loaders: string[] = [];
+  const hydraters: string[] = [];
+  const nextLoadConfigFilename = fs.readdirSync(dir).find(file => file.startsWith(filename + '.')) || filename + '.js'
+  const nextLoadConfigPkg = parseFile(dir, nextLoadConfigFilename)
+  const nextLoadConfigExport = getDefaultExport(nextLoadConfigPkg)
+
+  // module.exports = { load, hydrate }
+  if (!nextLoadConfigExport) {
+    const { load, hydrate } = getCommonJSModuleExports(nextLoadConfigPkg)
+    if (load) {
+      ts.forEachChild(load, (n) => {
+        if (!ts.isPropertyAssignment(n)) return
+        const text = removeQuotes(n.name.getText())
+        loaders.push(text)
+      })
+    }
+    if (hydrate) {
+      ts.forEachChild(hydrate, (n) => {
+        if (!ts.isPropertyAssignment(n)) return
+        const text = removeQuotes(n.name.getText())
+        hydraters.push(text)
+      })
+    }
+    return { loaders, hydraters }
+  }
+
+  // export default = { load, hydrate }
+  ts.forEachChild(nextLoadConfigExport, (node) => {
+    if (!ts.isPropertyAssignment(node)) return
+    const name = node.name.getText()
+
+    ts.forEachChild(node.initializer, (n) => {
+      if (!ts.isPropertyAssignment(n)) return
+      const text = removeQuotes(n.name.getText())
+      name === 'load' ? loaders.push(text) : hydraters.push(text)
+    })
+  })
+
+  return { loaders, hydraters }
+}
+
 export function removeCommentsFromCode(code: string) {
   return code.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '')
+}
+
+function removeQuotes(str: string) {
+  return str.replace(/^['|"|`]+|['|"|`]+$/g, '')
 }
