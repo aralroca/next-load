@@ -1,10 +1,25 @@
 import fs from 'fs'
-import { getLoadersAndHydratorsLists } from "../src/utils";
+import { getLoadersAndHydratorsLists, isPageOfTheList } from "../src/utils";
 
 describe('utils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
+
+  describe('isPageOfTheList', () => {
+    it('should return true with /about string', () => {
+      const result = isPageOfTheList('/about', ['/about', '/contact', '/blog/[slug]']);
+      expect(result).toBeTruthy();
+    })
+    it('should return false if the /about string is not in the list', () => {
+      const result = isPageOfTheList('/about', ['/about', '/contact', '/blog/[slug]']);
+      expect(result).toBeTruthy();
+    })
+    it('should work with regex in the list', () => {
+      const result = isPageOfTheList('/about', ['/contact', '/blog/[slug]', /about/g]);
+      expect(result).toBeTruthy();
+    })
+  })
 
   describe('getLoadersAndHydratorsLists', () => {
     it('should work with export default', async () => {

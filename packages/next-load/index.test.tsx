@@ -1,6 +1,11 @@
 import React from 'react'
-import { consume, _useHydrate } from "./index";
+import { consume, _useHydrate, __nl_load, __nl_hydrate } from "./index";
 import { render, screen } from "@testing-library/react";
+
+type User = {
+  username: string;
+  displayName?: string;
+}
 
 describe("next-load", () => {
   beforeEach(() => {
@@ -46,6 +51,52 @@ describe("next-load", () => {
       const text = await screen.findByText("RESULT: next-load");
 
       expect(text.id).toEqual('__NEXT_LOAD_DATA__');
+    });
+  });
+
+  describe("__nl_load", () => {
+    it("should work", async () => {
+      const config = {
+        data: {
+          pages: ['/about'],
+          load: async () => 'works'
+        },
+        user: {
+          pages: ['/about'],
+          load: () => ({ username: 'Aral' })
+        },
+        empty: {},
+        error: {
+          pages: ['/error'],
+          load: () => ({ error: '404' })
+        }
+      }
+      const data = await __nl_load(undefined, '/about', config);
+      expect(data).toEqual({ data: 'works', user: { username: 'Aral' } });
+    });
+  });
+
+  describe("__nl_hydrate", () => {
+    it("should work", async () => {
+      const config = {
+        data: {
+          pages: ['/about'],
+          load: async () => 'works'
+        },
+        user: {
+          pages: ['/about'],
+          load: () => ({ username: 'aralroca', displayName: 'Aral Roca' } as User),
+          hydrate: (user: User) => ({ username: user.username.toUpperCase() })
+        },
+        empty: {},
+        error: {
+          pages: ['/error'],
+          load: () => ({ error: '404' })
+        }
+      }
+      const loadData = await __nl_load(undefined, '/about', config);
+      const data = await __nl_hydrate(loadData, '/about', config);
+      expect(data).toEqual({ data: 'works', user: { username: 'ARALROCA' } });
     });
   });
 });

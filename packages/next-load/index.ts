@@ -33,3 +33,41 @@ export function _useHydrate() {
     if (shouldRerender && rerender) forceUpdate()
   }
 }
+
+export async function __nl_load(props: any, page: string, config: any) {
+  const keys = Object.keys(config)
+
+  const data = await Promise.all(keys.map(key => {
+    const item = config[key]
+    if (isPageOfTheList(page, item.pages) && typeof item.load === 'function') {
+      return item.load(props)
+    }
+  }))
+
+  return data.reduce((acc, item, index) => {
+    if (item) acc[keys[index]] = item
+    return acc
+  }, {})
+}
+
+export async function __nl_hydrate(props: any, page: string, config: any) {
+  const keys = Object.keys(props)
+
+  const data = await Promise.all(keys.map(key => {
+    const item = config[key]
+    const toHydrate = isPageOfTheList(page, item.pages) && typeof item.hydrate === 'function'
+    return toHydrate ? item.hydrate(props[key]) : props[key]
+  }))
+
+  return data.reduce((acc, item, index) => {
+    if (item) acc[keys[index]] = item
+    return acc
+  }, {})
+}
+
+function isPageOfTheList(page: string, list: (string | RegExp)[] = []) {
+  return list.some((item) => {
+    if (typeof item === 'string') return item === page
+    return item.test(page)
+  })
+}

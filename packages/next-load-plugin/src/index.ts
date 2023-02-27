@@ -20,8 +20,8 @@ function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
 
   // Loaders & Hydrators
   const { loaders, hydraters } = getLoadersAndHydratorsLists(dir)
-  console.log({ loaders, hydraters })
 
+  // app or src/app
   const pagesInDir = possiblePageDirs.find((pageDir) =>
     fs.existsSync(path.join(dir, pageDir))
   );
@@ -58,6 +58,8 @@ function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
           options: {
             basePath,
             pagesPath: path.join(pagesPath, '/'),
+            loaders,
+            hydraters,
           } as LoaderOptions,
         },
       })

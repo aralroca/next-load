@@ -1,6 +1,8 @@
+import { Post, User } from "./app/types"
+
 export default {
   user: {
-    pages: ['/', '/about', '/contact', '/blog/[slug]'],
+    pages: ['/', '/about', '/contact', '/blog/[slug]', new RegExp('^/example')],
     load: getUser,
     hydrate: mapUserDataForClientSide,
   },
@@ -8,16 +10,6 @@ export default {
     pages: ['/blog/[slug]', '/blog/[slug]/comments'],
     load: getPosts,
   },
-}
-
-type User = {
-  displayName?: string
-  username: string
-}
-
-type Post = {
-  title: string
-  content: string
 }
 
 async function getUser(): Promise<User> {

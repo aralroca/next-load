@@ -547,3 +547,10 @@ function removeQuotes(str: string) {
 function uniqueArray<T>(arr: T[]) {
   return Array.from(new Set(arr))
 }
+
+export function isPageOfTheList(page: string, list: (string | RegExp)[] = []) {
+  return list.some((item) => {
+    if (typeof item === 'string') return item === page
+    return item.test(page)
+  })
+}

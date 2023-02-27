@@ -8,7 +8,7 @@ export default function loader(
   this: webpack.LoaderContext<LoaderOptions>,
   rawCode: string
 ) {
-  const { basePath, pagesPath } = this.getOptions()
+  const { basePath, pagesPath, hydraters, loaders } = this.getOptions()
 
   // Normalize slashes in a file path to be posix/unix-like forward slashes
   const normalizedPagesPath = pagesPath.replace(/\\/g, '/')
@@ -22,5 +22,5 @@ export default function loader(
   // "export default" on the page
   if (!defaultExport) return rawCode
 
-  return transformer(pagePkg, { pageNoExt, normalizedResourcePath, normalizedPagesPath })
+  return transformer(pagePkg, { pageNoExt, normalizedResourcePath, normalizedPagesPath, hydraters, loaders })
 }
