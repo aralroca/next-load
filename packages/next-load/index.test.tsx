@@ -52,6 +52,22 @@ describe("next-load", () => {
 
       expect(text.id).toEqual('__NEXT_LOAD_DATA__');
     });
+    it("should work with an object", async () => {
+      const Parent = ({ children }: { children: React.ReactNode }) => {
+        return <div id="__NEXT_LOAD_DATA__" data-hydrate={JSON.stringify({ data: { text: 'test' } })} data-page="/test">{children}</div>
+      };
+
+      const Component = () => {
+        _useHydrate();
+        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate.data.test}</>;
+      };
+
+      render(<Parent><Component /></Parent>)
+
+      const text = await screen.findByText("RESULT: test");
+
+      expect(text.id).toEqual('__NEXT_LOAD_DATA__');
+    });
   });
 
   describe("__nl_load", () => {

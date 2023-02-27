@@ -20,17 +20,17 @@ export function _useHydrate() {
 
   if (isClient && !window.__NEXT_LOAD__) {
     window.__NEXT_LOAD__ = {}
-    update(false)
+    update()
   }
 
   useEffect(update)
-  function update(rerender = true) {
+  function update() {
     const el = document.getElementById('__NEXT_LOAD_DATA__')
     if (!el) return
     const { hydrate, page } = el.dataset
     const shouldRerender = page !== window.__NEXT_LOAD__.page
-    window.__NEXT_LOAD__ = { hydrate, page }
-    if (shouldRerender && rerender) forceUpdate()
+    window.__NEXT_LOAD__ = { hydrate: JSON.parse(hydrate!), page }
+    if (shouldRerender) forceUpdate()
   }
 }
 

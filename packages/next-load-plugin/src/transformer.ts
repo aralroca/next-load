@@ -37,8 +37,8 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   // Removes the export default from the page
   // and tells under what name we can get the old export
   const pageVariableName = interceptExport(pagePkg, 'default', `__Next_Load__Page__${hash}__`)
-  const hasLoad = isPageOfTheList(pageNoExt, loaders)
-  const hasHydrate = isPageOfTheList(pageNoExt, hydraters)
+  const hasLoad = isPageOfTheList(pathname, loaders)
+  const hasHydrate = isPageOfTheList(pathname, hydraters)
   const pageWithoutLoadExport = isPage && !hasLoad
 
   // The "hydrate export" function is exclusively accessible within a server page
@@ -104,7 +104,7 @@ function transformClientPage({ code, hash, pageVariableName, pathname, hasLoad }
     import { useSearchParams as __useSearchParams } from 'next/navigation'
     import * as __react from 'react'
     import __next_load_config from '@next-load-root/next.load'
-    import { __nl_load, __nl_hydrate } from 'next-load'
+    import { __nl_load } from 'next-load'
 
     ${clientCode}
 
@@ -120,7 +120,7 @@ function transformClientPage({ code, hash, pageVariableName, pathname, hasLoad }
         ${load}.then(_data => {
           window.__NEXT_LOAD__ = { hydrate: _data, page }
           forceUpdate()
-        })
+        }).catch(err => console.log(err))
       }, [])
 
       if (isServer || !window.__NEXT_LOAD__) return null
