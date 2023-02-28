@@ -16,8 +16,8 @@ async function getUser(): Promise<User> {
   return { username: 'aralroca', displayName: 'Aral Roca' }
 }
 
-function mapUserDataForClientSide(user: User): User {
-  return { username: user.username }
+function mapUserDataForClientSide(user: User, pathname: string): User {
+  if (pathname.startsWith('/blog')) return { username: user.username }
 }
 
 async function getPosts(): Promise<Post[]> {

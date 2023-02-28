@@ -4,9 +4,10 @@ import type webpack from 'webpack'
 import type { NextConfig } from 'next'
 
 import { LoaderOptions } from './types'
-import { extensionsRgx, getLoadersAndHydratorsLists } from './utils'
+import { createConfigFileIfNotExists, extensionsRgx, getLoadersAndHydratorsLists } from './utils'
 
 const possiblePageDirs = ['app', 'src/app']
+const filename = 'next.load'
 
 function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
   if (!nextConfig?.experimental?.appDir) return nextConfig
@@ -18,8 +19,12 @@ function nextLoadPlugin(nextConfig: NextConfig = {}): NextConfig {
     path.relative(basePath, process.env.NEXT_LOAD_PATH || '.')
   )
 
+  // Next-load config file
+  const nextLoadConfigFilename = fs.readdirSync(dir).find(file => file.startsWith(filename + '.')) || filename + '.js'
+  createConfigFileIfNotExists(dir, nextLoadConfigFilename)
+
   // Loaders & Hydrators
-  const { loaders, hydraters } = getLoadersAndHydratorsLists(dir)
+  const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, nextLoadConfigFilename)
 
   // app or src/app
   const pagesInDir = possiblePageDirs.find((pageDir) =>

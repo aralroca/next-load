@@ -25,31 +25,37 @@
 <img src="https://img.shields.io/twitter/follow/aralroca?style=social&logo=twitter"
             alt="follow on Twitter"></a>
 
-**Next Load** is a simple and lightweight library (~400B) that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
+**Next Load** is a simple and lightweight library (~500B) that makes it easy to manage data loading and hydration in **Next.js +13 app dir** projects.
 
 With Next Load, you can **load** data in one place, **hydrate** some parts, and **consume** everywhere, all while keeping your code organized and easy to maintain.
 
-> ❗️ Until version 1.0 we do not recommend that you use it in production.  Missing support for layout.js, template.js, route.js, loading.js, error.js, global-error.js, and not-found.js. For now, until v1.0 is only available for the page and its subcomponents / helpers and we will support the rest in the next versions.
+> ❗️ Until version 1.0 we do not recommend that you use it in production.  Missing support for layout.js, template.js, route.js, loading.js, error.js, global-error.js, and not-found.js. For now, **until v1.0** is only available for the **page** and its **subcomponents** / **helpers** and we will support the rest in the next versions.
 
 | Method  | Description                                                        | Usage                             |
 |---------|--------------------------------------------------------------------|-----------------------------------|
-| `load`    | Loads data in one place.                                           | Server/client pages|
-| `hydrate` | Facilitates the transfer of server data defined in the load function to client components. | Server pages                       |
-| `consume` | Enables the consumption of data loaded by the load method.         | Server/client pages/components/helpers    |
+| [`load`](#load)    | Loads data in one place.                                           | Server/client pages|
+| [`hydrate`](#hydrate) | Facilitates the transfer of server data defined in the load function to client components. | Server pages                       |
+| [`consume`](#consume) | Enables the consumption of data loaded by the load method.         | Server/client pages/components/helpers    |
 
 ## Getting started
+
+### Install
 
 To install this library, you can use npm or yarn:
 
 ```bash
-npm install next-load && npm install --save-dev next-load-plugin
+> npm install next-load
+> npm install --save-dev next-load-plugin
 ```
 
 or
 
 ```bash
-yarn add next-load && yarn add -D next-load-plugin
+> yarn add next-load
+> yarn add -D next-load-plugin
 ```
+
+### Activate
 
 To add the `next-load-plugin` to your Next.js project, you need to modify the `next.config.js` file:
 
@@ -63,24 +69,77 @@ module.exports = nextLoad({
 });
 ```
 
-## load
+### Configure
 
-The `load` method allows you to load data in one place. It is a function that returns a promise that resolves to the data you want to load. You can use this method inside your **server/client page**, as in the following example:
+To add the `load` and `hydrate` logic, create a new file called **next.load.js** at the same level as **next.config.js**. This file can be either CommonJS or ECMAScript module, and can have any of the following extensions: `js`, `ts`, `mjs`, `cjs`, `jsx`, `tsx`. We recommend using **next.load.ts** or **next.load.js** if you are not using TypeScript.
 
-**app/page.tsx**
+The file should have the following structure:
+
+**next.load.ts**
+```ts
+import { Post, User } from "./app/types"
+
+export default {
+  user: {
+    pages: ['/', '/about', '/contact', '/blog/[slug]', new RegExp('^/example')],
+    load: getUser,
+    hydrate: mapUserDataForClientSide,
+  },
+  posts: {
+    pages: ['/blog/[slug]', '/blog/[slug]/comments'],
+    load: getPosts,
+  },
+  // ... Other data you need in your pages
+}
+
+async function getUser(): Promise<User> {
+  return { username: 'aralroca', displayName: 'Aral Roca' }
+}
+
+function mapUserDataForClientSide(user: User, pathname: string): User {
+  if (pathname.startsWith('/blog')) return { username: user.username }
+}
+
+async function getPosts(): Promise<Post[]> {
+  return [{ title: 'My first post', content: 'Hello world!' }]
+}
+```
+
+To better understand how `load` and `hydrate` work within this configuration, please refer to the following sections.
+
+### Use
+
+After that, you can `consume` this data in your pages / components / helpers in a easy way:
+
 ```ts
 import { consume } from 'next-load'
 
-// You should export the "load" function
-export async function load({ searchParams }): User {
-  const userId = searchParams.get('userId')
-  const response = await fetch(`https://my-api/api/user/${userId}`);
-  return response.json();
-}
-
-export default function MyPage() {
-  const user = consume<User>();
+export default function Page() {
+  const { user, posts } = consume()
   // ...
+}
+```
+
+## load
+
+The idea of this function (can be async or not) is to configure a single function that loads a single data type for all pages that need it. We understand that the content returned by this function may vary depending on the pages, so this function supports two arguments:
+
+- **`props`: { pageProps }**: Here we receive an object `{ pageProps }`. Currently, it has this structure because in upcoming releases we will also receive `layoutProps`, `templateProps`, `routeProps`, `notFoundProps`, `loadingProps`, etc.
+- **`pathname`: string**: Here we receive the `pathname`. If you're working on the file `app/about-us/page.ts` you will receive `/about-us` as the `pathname`.
+
+It can return whatever is needed.
+
+**next.load.ts**
+```ts
+export default {
+  user: {
+    pages: ['/'],
+    load: async (({ pageProps }, pathname: string) => {
+       const res = await fetch('https://api.example.com/user...');
+       if (!res.ok) throw new Error('Failed to fetch user');
+       return res.json();
+    }),
+  },
 }
 ```
 
@@ -90,105 +149,72 @@ The **`hydrate`** method (optional) facilitates the transfer of server data defi
 
 By default if the `hydrate` is not defined, all the `load` data is going to be hydrated.
 
+This method is applicable in a **server page** and will receive two parameters:
 
-This method is applicable in a **server page**, and can be implemented as shown in the example below:
+- **`load data`** - The data loaded by the `load` function previously.
+- **`pathname`: string**: This allows pages that do not need hydration to return `undefined`, for example.
+
+**next.load.ts**
+```ts
+export default {
+  user: {
+    // all pages
+    pages: [new RegExp('^/')], 
+    // Using 'hydrate' then the 'load' function is only for server pages/components
+    load: async () =>  /* ... */,
+    // `hydrate` is the data that client components are going to consume inside a server page
+    hydrate: (user: User, pathname: string) => {
+      // Ex: Documentation client components don't need the user
+      if(pathname.startsWith('/documentation')) return
+      // Client components only need the username. Avoid hydrating inecessary data.
+      return { username: user.username }
+    }
+  },
+}
+```
+
+
+## consume
+
+The **`consume`** method enables the consumption of data loaded by the `load` method. It returns the previously loaded data or the hydrated data on the client-side. This method can be utilized within **pages**, **components**, or **helpers**, without being restricted to the usage within a component as it is not a hook. The following example demonstrates its usage:
 
 **app/page.tsx**
 ```tsx
 import { consume } from 'next-load'
 
-// This map the data to be used in the client components
-export async function hydrate(user: User): string {
-  return user.username
+function helper() {
+  const { user, posts } = consume<MyDataType>();
+  // ...
 }
 
-// Using hydrate, this loads the data only to be used in the server part
-export async function load({ searchParams }): User {
-  const userId = searchParams.get('userId')
-  const response = await fetch(`https://my-api/api/user/${userId}`);
-  return response.json();
+function Component() {
+  const { user, posts } = consume<MyDataType>();
+  // ...
 }
 
-export default function MyPage() {
-  const user = consume<User>();
+export default function Page() {
+  const { user, posts } = consume<MyDataType>();
   // ...
 }
 ```
 
-**app/server-component.tsx**
-```tsx
-import { consume } from 'next-load'
-
-export default function MyServerComponent() {
-  const user = consume<User>();
-  // ...
-}
-```
-
-In contrast, a client component only consumes the `username`:
-
-
-**app/client-component.tsx**
-```tsx
-"use client";
-import { consume } from 'next-load'
-
-export default function MyClientComponent() {
-  const username = consume<string>();
-  // ...
-}
-```
-
-## consume
-
-The **`consume`** method enables the consumption of data loaded by the `load` method. It returns the previously loaded data or the hydrated data on the client-side. This method can be utilized within pages, components, or helpers, without being restricted to the usage within a component as it is not a hook. The following example demonstrates its usage:
-
-**app/server-page.tsx**
-```tsx
-import { consume } from 'next-load'
-
-export function load(): User {
-  // ...
-}
-
-export default function MyServerPage() {
-  const user = consume<User>();
-  // ...
-}
-```
-
-**app/client-page.tsx**
+**app/client/page.tsx**
 ```tsx
 "use client"
 import { consume } from 'next-load'
 
-export function load(): User {
+function clientHelper() {
+  const { user, posts } = consume<MyDataType>();
+  // ...
+}
+
+function ClientComponent() {
+  const { user, posts } = consume<MyDataType>();
   // ...
 }
 
 export default function MyClientPage() {
-  const user = consume<User>();
-  // ...
-}
-```
-
-**app/server-component.tsx**
-```tsx
-import { consume } from 'next-load'
-
-export default function MyServerComponent() {
-  const user = consume<User>();
-  // ...
-}
-```
-
-**app/client-component.tsx**
-```tsx
-"use client";
-import { consume } from 'next-load'
-
-export default function MyClientComponent() {
-  const user = consume<User>();
+  const { user, posts } = consume<MyDataType>();
   // ...
 }
 ```

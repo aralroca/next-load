@@ -1,5 +1,6 @@
 import fs from 'fs'
 import ts from 'typescript'
+import path from 'path'
 import { ParsedFilePkg, Transformer } from './types'
 
 export const extensionsRgx = /\.(tsx|ts|js|cjs|mjs|jsx)$/
@@ -477,11 +478,9 @@ export function getCommonJSModuleExports(filePkg: ParsedFilePkg) {
   return exports
 }
 
-export function getLoadersAndHydratorsLists(dir: string) {
-  const filename = 'next.load'
+export function getLoadersAndHydratorsLists(dir: string, nextLoadConfigFilename: string) {
   const loaders: string[] = [];
   const hydraters: string[] = [];
-  const nextLoadConfigFilename = fs.readdirSync(dir).find(file => file.startsWith(filename + '.')) || filename + '.js'
   const nextLoadConfigPkg = parseFile(dir, nextLoadConfigFilename)
   const nextLoadConfigExport = getDefaultExport(nextLoadConfigPkg)
 
@@ -553,4 +552,14 @@ export function isPageOfTheList(page: string, list: (string | RegExp)[] = []) {
     if (typeof item === 'string') return item === page
     return item.test(page)
   })
+}
+
+export function createConfigFileIfNotExists(dir: string, filename: string) {
+  if (fs.existsSync(path.join(dir, filename))) return
+  fs.writeFileSync(path.join(dir, filename), `export default { 
+  example: {
+    pages: ['/example', new RegExp('^/')],
+    load: async () => 'Modify the next.load.(js|ts) file to change the pages data',
+  }
+}`)
 }

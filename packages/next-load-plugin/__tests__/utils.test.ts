@@ -42,7 +42,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
@@ -66,7 +66,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual(['/', '/about', '/contact', /\/example\/[a-z]+/, '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', '/contact', /\/example\/[a-z]+/,]);
     });
@@ -88,7 +88,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
@@ -112,7 +112,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual(['/', '/about', new RegExp('/contact/[a-z]+'), new RegExp('/example/[a-z]+'), '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual(['/', '/about', new RegExp('/contact/[a-z]+'), new RegExp('/example/[a-z]+'),]);
     });
@@ -129,7 +129,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual(['/', '/about', '/contact', '/blog/[slug]']);
     });
@@ -150,7 +150,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual(['/', '/about', '/contact', '/blog/[slug]', '/blog/[slug]/comments']);
       expect(hydraters).toEqual([]);
     });
@@ -160,7 +160,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual([]);
     });
@@ -170,7 +170,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual([]);
     });
@@ -180,7 +180,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual([]);
     });
@@ -190,7 +190,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual([]);
     });
@@ -200,7 +200,7 @@ describe('utils', () => {
       const tempFile = `${dir}/next.load.js` as any;
       jest.spyOn(fs, 'readdirSync').mockReturnValueOnce([tempFile]);
       jest.spyOn(fs, 'readFileSync').mockReturnValueOnce(code);
-      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir);
+      const { loaders, hydraters } = getLoadersAndHydratorsLists(dir, 'next.load.js');
       expect(loaders).toEqual([]);
       expect(hydraters).toEqual([]);
     });
