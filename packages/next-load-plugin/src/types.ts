@@ -3,6 +3,8 @@ import type ts from 'typescript'
 export interface LoaderOptions {
   basePath: string
   pagesPath: string
+  loaders: (string | RegExp)[]
+  hydraters: (string | RegExp)[]
 }
 
 export type Transformer = (

@@ -1,5 +1,5 @@
 import { ParsedFilePkg } from "./types";
-import { interceptExport, getNamedExport, removeCommentsFromCode, colorRed, colorOrange } from "./utils";
+import { interceptExport, removeCommentsFromCode, colorRed, colorOrange, isPageOfTheList } from "./utils";
 
 const clientLine = ['"use client"', "'use client'"]
 
@@ -8,13 +8,21 @@ type TransformParams = {
   hash: string,
   pageVariableName: string,
   pathname?: string,
-  load?: string,
-  hydrate?: string,
+  hasLoad?: boolean,
+  hasHydrate?: boolean,
+}
+
+type TransformOptions = {
+  pageNoExt?: string,
+  normalizedResourcePath?: string,
+  normalizedPagesPath?: string,
+  hydraters?: (string | RegExp)[],
+  loaders?: (string | RegExp)[],
 }
 
 const moreHydrateInfo = 'For more information, please refer to the documentation provided at https://github.com/aralroca/next-load#hydrate.'
 
-export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '' } = {}) {
+export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', normalizedResourcePath = '', normalizedPagesPath = '', hydraters = [], loaders = [] }: TransformOptions) {
   let code = pagePkg.getCode()
   const codeWithoutComments = removeCommentsFromCode(code).trim()
   const isClientCode = clientLine.some(line => codeWithoutComments.startsWith(line))
@@ -29,20 +37,17 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   // Removes the export default from the page
   // and tells under what name we can get the old export
   const pageVariableName = interceptExport(pagePkg, 'default', `__Next_Load__Page__${hash}__`)
-  const loadExport = getNamedExport(pagePkg, 'load')
-  const hydrateExport = getNamedExport(pagePkg, 'hydrate')
-  const pageWithoutLoadExport = isPage && !loadExport
-  const load = `Promise.resolve(${loadExport ? 'load(props)' : ''})`
-  let hydrate = `Promise.resolve(${hydrateExport ? 'hydrate(_data)' : '_data'})`
+  const hasLoad = isPageOfTheList(pathname, loaders)
+  const hasHydrate = isPageOfTheList(pathname, hydraters)
+  const pageWithoutLoadExport = isPage && !hasLoad
 
   // The "hydrate export" function is exclusively accessible within a server page
-  if (isPage && isClientCode && hydrateExport) {
+  if (isPage && isClientCode && hasHydrate) {
     console.log(colorRed('[next-load] ERROR '), colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`))
-    hydrate = `Promise.resolve(_data)`
   }
 
   // The function "hydrate export" can only be accessed through the use of "load export"
-  if (isPage && !isClientCode && !loadExport && hydrateExport) {
+  if (isPage && !isClientCode && !hasLoad && hasHydrate) {
     console.log(colorRed('[next-load] ERROR '), colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`))
   }
 
@@ -53,13 +58,18 @@ export default function transformer(pagePkg: ParsedFilePkg, { pageNoExt = '/', n
   code = pagePkg.getCode()
 
   if (isClientCode && !isPage) return transformClientComponent({ code, hash, pageVariableName })
-  if (isClientCode && isPage) return transformClientPage({ code, hash, pageVariableName, pathname, load, hydrate })
-  return transformServerPage({ code, hash, pageVariableName, pathname, load, hydrate })
+  if (isClientCode && isPage) return transformClientPage({ code, hash, pageVariableName, pathname, hasLoad })
+  return transformServerPage({ code, hash, pageVariableName, pathname, hasLoad, hasHydrate })
 }
 
-function transformServerPage({ code, hash, pageVariableName, pathname, load, hydrate }: TransformParams) {
+function transformServerPage({ code, hash, pageVariableName, pathname, hasLoad, hasHydrate }: TransformParams) {
+  const load = `Promise.resolve(${hasLoad ? `__nl_load(props, '${pathname}', __next_load_config)` : ''})`
+  const hydrate = `Promise.resolve(${hasHydrate ? `__nl_hydrate(_data, '${pathname}', __next_load_config)` : '_data'})`
+
   return `
   import * as __react from 'react'
+  import __next_load_config from '@next-load-root/next.load'
+  import { __nl_load, __nl_hydrate } from 'next-load'
 
   ${code}
 
@@ -82,7 +92,8 @@ function transformServerPage({ code, hash, pageVariableName, pathname, load, hyd
 `
 }
 
-function transformClientPage({ code, hash, pageVariableName, pathname, load }: TransformParams) {
+function transformClientPage({ code, hash, pageVariableName, pathname, hasLoad }: TransformParams) {
+  const load = `Promise.resolve(${hasLoad ? `__nl_load(props, '${pathname}', __next_load_config)` : ''})`
   let clientCode = code
   const topLine = clientLine[0]
 
@@ -92,6 +103,8 @@ function transformClientPage({ code, hash, pageVariableName, pathname, load }: T
   return `${topLine}
     import { useSearchParams as __useSearchParams } from 'next/navigation'
     import * as __react from 'react'
+    import __next_load_config from '@next-load-root/next.load'
+    import { __nl_load } from 'next-load'
 
     ${clientCode}
 
@@ -107,7 +120,7 @@ function transformClientPage({ code, hash, pageVariableName, pathname, load }: T
         ${load}.then(_data => {
           window.__NEXT_LOAD__ = { hydrate: _data, page }
           forceUpdate()
-        })
+        }).catch(err => console.log(err))
       }, [])
 
       if (isServer || !window.__NEXT_LOAD__) return null

@@ -25,13 +25,18 @@ const outsideAppDir = {
 
 const moreHydrateInfo = 'For more information, please refer to the documentation provided at https://github.com/aralroca/next-load#hydrate.'
 
-describe('transformer', () => {
-  beforeEach(() => {
-    globalThis.__NEXT_LOAD__ = undefined
-    jest.clearAllMocks();
-  })
+const log = console.log
+const mockLog = jest.spyOn(console, 'log').mockImplementation((args) => { log(args) });
 
+jest.mock('@next-load-root/next.load', () => ({ __esModule: true, default: {} }), { virtual: true })
+
+describe('transformer', () => {
   describe('WITHOUT load export', () => {
+    beforeEach(() => {
+      globalThis.__NEXT_LOAD__ = undefined
+      jest.clearAllMocks();
+    })
+
     it('SHOULD NOT transform the SERVER /page', () => {
       const pagePkg = parseCode('jsx', `
        export default function Page() { return <div>Page</div>; }
@@ -80,7 +85,7 @@ describe('transformer', () => {
 
     it('SHOULD transfrom a CLIENT /component to hydrate if needs', async () => {
       const element = document.createElement('div')
-      element.dataset.hydrate = 'HYDRATE WORKS'
+      element.dataset.hydrate = JSON.stringify({ data: { text: 'HYDRATE WORKS' } })
       document.getElementById = jest.fn().mockReturnValue(element)
       const pagePkg = parseCode('jsx', `
         "use client";
@@ -88,8 +93,8 @@ describe('transformer', () => {
         import { consume } from 'next-load';
         
         export default function Component() {
-          const text = consume<string>(); 
-          return <h1 data-testid="test">RESULT: {text}</h1> 
+          const {data} = consume<string>(); 
+          return <h1 data-testid="test">RESULT: {data.text}</h1> 
         }
       `)
       const options = { pageNoExt: '/component', ...insideAppDir }
@@ -102,21 +107,31 @@ describe('transformer', () => {
   })
 
   describe('WITH load export', () => {
+    beforeEach(() => {
+      globalThis.__NEXT_LOAD__ = undefined
+      jest.clearAllMocks();
+    })
+
     it('SHOULD be possible to load this data inside a SERVER /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        },
+      })
+
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
 
         type DataType = { text: string };
 
-        export const load = async () => ({ text: 'LOAD WORKS' });
-
         export default function Page() {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
@@ -124,90 +139,141 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS')
     })
     it('SHOULD receive the page props as params to load better the data in a SERVER /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async ({ pageProps }: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
+        }
+      })
+
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
 
         type DataType = { text: string };
 
-        export const load = async (pageProps) => ({ text: 'LOAD WORKS IN '+pageProps.text.toUpperCase() });
-
-        export default function Page(pageProps) {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">{pageProps.text}: {text}</div>; 
+        export default function Page(props) {
+          const { data } = consume<DataType>();
+          return <div data-testid="test-id">{props.text}: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page({ text: 'Page' })}</>)
-      const div = screen.getByTestId('test')
+      const div = screen.getByTestId('test-id')
       expect(div.textContent).toBe('Page: LOAD WORKS IN PAGE')
     })
+    it('SHOULD receive the page name as second argument to load better the data in a SERVER /page', async () => {
+      const mockLoad = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async ({ pageProps }: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+        }
+      })
+
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export default function Page(pageProps) {
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
+        }
+      `)
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page({})}</>)
+      const div = screen.getByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
+    })
     it('SHOULD transform the SERVER /page adding element to hydrate to clients', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
 
-        export async function load() { return { text: 'LOAD WORKS' }; }
         export default function Page() { return <div>Page</div>; }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
-      expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"LOAD WORKS\"}}')
     })
     it('SHOULD also work the "load" without promise in the SERVER /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
 
-        export function load() { return { text: 'LOAD WORKS' }; }
         export default function Page() { return <div>Page</div>; }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
-      expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"LOAD WORKS\"}')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"LOAD WORKS\"}}')
     })
     it('SHOULD be possible to hydrate a big array of data in SERVER /page', async () => {
-      const arrayLength = 100000
-      // ~589kb
-      const bigDataSize = JSON.stringify(Array.from({ length: arrayLength }).map((_, i) => i))
+      const bigDataSize = Array.from({ length: 1000 }).map((_, i) => i)
+      await applyConfig({
+        data: {
+          pages: [new RegExp('/product.*')],
+          load: () => bigDataSize
+        }
+      })
+
       const pagePkg = parseCode('jsx', `
         import React from 'react';
-
-        export function load() { return ${bigDataSize} }
         export default function Page() { return <div>Page</div>; }
       `)
-      const options = { pageNoExt: '/product/[id]/page', ...insideAppDir }
+      const options = { pageNoExt: '/product/[id]/page', loaders: [new RegExp('/product.*')], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/product/[id]')
-      expect(JSON.parse(hydrateElement.dataset.hydrate!)).toHaveLength(arrayLength)
+      expect(JSON.parse(hydrateElement.dataset.hydrate!).data).toHaveLength(1000)
     })
     it('SHOULD be possible to load this data inside a CLIENT /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
         import { consume } from 'next-load';
 
-        type DataType = { text: string };
-
-        export const load = async () => ({ text: 'LOAD WORKS' });
+        type DataType = { data: { text: string } };
 
         export default function Page() {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Client page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Client page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />);
@@ -216,43 +282,81 @@ describe('transformer', () => {
     })
 
     it('SHOULD also work the "load" without promise in the CLIENT /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
         import { consume } from 'next-load';
 
-        type DataType = { text: string };
-
-        export const load = () => ({ text: 'LOAD WORKS' });
+        type DataType = { data: text: string } };
 
         export default function Page() {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Client page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Client page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />);
       const div = await screen.findByTestId('test')
       expect(div.textContent).toBe('Client page: LOAD WORKS')
     })
-    it('SHOULD receive the page props as params to load better the data in a CLIENT /page', async () => {
+    it('SHOULD receive the page name as second argument to load better the data in a CLIENT /page', async () => {
+      const mockLoad = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async ({ pageProps }: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+        }
+      })
+
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
         import { consume } from 'next-load';
 
-        type DataType = { text: string };
-
-        export const load = async (pageProps) => ({ text: 'LOAD WORKS IN '+pageProps.text.toUpperCase() });
-
         export default function Page(pageProps) {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">{pageProps.text}: {text}</div>; 
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = await screen.findByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
+    })
+    it('SHOULD receive the page props as params to load better the data in a CLIENT /page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async ({ pageProps }: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
+        }
+      })
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        type DataType = { data: { text: string } };
+
+        export default function Page(pageProps) {
+          const { data } = consume<DataType>();
+          return <div data-testid="test">{pageProps.text}: {data.text}</div>; 
+        }
+      `)
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage text="Client Page" />)
@@ -260,18 +364,23 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Client Page: LOAD WORKS IN CLIENT PAGE')
     })
     it('SHOULD NOT add an element to hydrate to clients in a CLIENT page', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
         import { consume } from 'next-load';
 
-        export async function load() { return { text: 'LOAD WORKS' }; }
         export default function Page() { 
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Client page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Client page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const ClientPage = await importFromString(output).then(m => m.default)
       render(<ClientPage />)
@@ -280,33 +389,42 @@ describe('transformer', () => {
       const hydrateElement = screen.queryByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement).toBe(null)
     })
-    it('SHOULD NOT transform the SERVER /component', () => {
+    it('SHOULD NOT transform the SERVER /component', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
-        export async function load() { return { text: 'SHOULD NOT BE USED' };        
         export default function Page() { return <div>Page</div>; }
       `)
       const code = pagePkg.getCode()
-      const options = { pageNoExt: '/component', ...insideAppDir }
+      const options = { pageNoExt: '/component', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       expect(output).toBe(code)
     });
     it('SHOULD transform the CLIENT /component to hydrate but not use the load', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'SHOULD NOT BE USED' }),
+        }
+      })
       const element = document.createElement('div')
-      element.dataset.hydrate = 'HYDRATE WORKS'
+      element.dataset.hydrate = JSON.stringify({ data: { text: "HYDRATE WORKS" } })
       document.getElementById = jest.fn().mockReturnValue(element)
       const pagePkg = parseCode('jsx', `
           "use client";
           import React from 'react';
           import { consume } from 'next-load';
           
-          export async function load() { return { text: 'SHOULD NOT BE USED' }; }
-
           export default function Component() {
-            const text = consume<string>(); 
-            return <h1 data-testid="test">RESULT: {text}</h1> 
+            const { data } = consume(); 
+            return <h1 data-testid="test">RESULT: {data?.text}</h1> 
           }
         `)
-      const options = { pageNoExt: '/component', ...insideAppDir }
+      const options = { pageNoExt: '/component', loaders: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
@@ -314,22 +432,27 @@ describe('transformer', () => {
       expect(div.textContent).toBe('RESULT: HYDRATE WORKS')
     });
     it('SHOULD transform the CLIENT /component to hydrate but not use the load in outside app dir components', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/some/component'],
+          load: async () => ({ text: 'SHOULD NOT BE USED' }),
+        }
+      })
       const element = document.createElement('div')
-      element.dataset.hydrate = 'HYDRATE WORKS'
+      element.dataset.page = '/some/component'
+      element.dataset.hydrate = JSON.stringify({ data: { text: 'HYDRATE WORKS' } })
       document.getElementById = jest.fn().mockReturnValue(element)
       const pagePkg = parseCode('jsx', `
           "use client";
           import React from 'react';
           import { consume } from 'next-load';
           
-          export async function load() { return { text: 'SHOULD NOT BE USED' }; }
-
           export default function Component() {
-            const text = consume<string>(); 
-            return <h1 data-testid="test">RESULT: {text}</h1> 
+            const {data} = consume(); 
+            return <h1 data-testid="test">RESULT: {data.text}</h1> 
           }
         `)
-      const options = { pageNoExt: '/some/component', ...outsideAppDir }
+      const options = { pageNoExt: '/some/component', loaders: ['/some/component'], ...outsideAppDir }
       const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
@@ -339,8 +462,18 @@ describe('transformer', () => {
   });
 
   describe('WITH hydrate export', () => {
+    beforeEach(() => {
+      globalThis.__NEXT_LOAD__ = undefined
+      jest.clearAllMocks();
+    })
+
     it('SHOULD NOT be possible to use hydrate without load in a SERVER /page', async () => {
-      console.log = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          hydrate: async () => ({ text: 'HYDRATE WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
@@ -355,31 +488,34 @@ describe('transformer', () => {
         }
       `)
       const code = pagePkg.getCode()
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', hydraters: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       expect(output).toBe(code)
       const prefix = colorRed('[next-load] ERROR ')
       const message = colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`)
-      expect(console.log).toHaveBeenCalledWith(prefix, message)
+      expect(mockLog).toHaveBeenCalledWith(prefix, message)
     });
     it('SHOULD NOT be possible to use hydrate with load in a CLIENT /page', async () => {
-      console.log = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' }),
+          hydrate: async () => ({ text: 'HYDRATE WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
         import { consume } from 'next-load';
 
-        type DataType = { text: string };
-
-        export const load = async () => ({ text: 'LOAD WORKS' });
-        export const hydrate = async () => ({ text: 'HYDRATE WORKS' });
+        type DataType = { data: { text: string } };
 
         export default function Page() {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], hydraters: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const Component = await importFromString(output).then(m => m.default)
       render(<Component />)
@@ -387,24 +523,28 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS')
       const prefix = colorRed('[next-load] ERROR ')
       const message = colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`)
-      expect(console.log).toHaveBeenCalledWith(prefix, message)
+      expect(mockLog).toHaveBeenCalledWith(prefix, message)
     });
     it('SHOULD be possible to load data inside a SERVER /page and hydrate the hydrate data', async () => {
+      await applyConfig({
+        data: {
+          pages: ['/'],
+          load: async () => ({ text: 'LOAD WORKS' }),
+          hydrate: async () => ({ text: 'HYDRATE WORKS' })
+        }
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
 
-        type DataType = { text: string };
-
-        export const load = async () => ({ text: 'LOAD WORKS' });
-        export const hydrate = async () => ({ text: 'HYDRATE WORKS' });
+        type DataType = { data: { text: string } };
 
         export default function Page() {
-          const { text } = consume<DataType>();
-          return <div data-testid="test">Page: {text}</div>; 
+          const { data } = consume<DataType>();
+          return <div data-testid="test">Page: {data.text}</div>; 
         }
       `)
-      const options = { pageNoExt: '/page', ...insideAppDir }
+      const options = { pageNoExt: '/page', loaders: ['/'], hydraters: ['/'], ...insideAppDir }
       const output = transformer(pagePkg, options)
       const page = await importFromString(output).then(m => m.default)
       render(<>{await page()}</>)
@@ -412,10 +552,54 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS')
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
-      expect(hydrateElement.dataset.hydrate).toBe('{\"text\":\"HYDRATE WORKS\"}')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"HYDRATE WORKS\"}}')
+    })
+    it('SHOULD receive the page name as second argument to load & hydrate method in a SERVER /page', async () => {
+      const mockLoad = jest.fn()
+      const mockHydrate = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async ({ pageProps }: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+          hydrate: async (data: any, pathname: string) => {
+            mockHydrate(data, pathname)
+            return { text: `HYDRATE WORKS IN ${pathname}` }
+          }
+        }
+      })
+
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export default function Page(pageProps) {
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
+        }
+      `)
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], hydraters: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page({})}</>)
+      const div = screen.getByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
+      expect(mockHydrate).toBeCalledWith({ text: 'LOAD WORKS IN /about' }, '/about')
+      const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement.dataset.page).toBe('/about')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"HYDRATE WORKS IN /about\"}}')
     })
   });
 });
+
+async function applyConfig(config: any = {}) {
+  // @ts-ignore
+  const module = await import('@next-load-root/next.load')
+  module.default = config
+}
 
 async function importFromString(code: string): Promise<any> {
   const tempFile = join(tmpdir(), `toremove-${Date.now()}.tsx`);

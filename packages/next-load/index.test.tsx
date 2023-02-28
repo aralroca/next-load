@@ -1,13 +1,19 @@
 import React from 'react'
-import { consume, _useHydrate } from "./index";
+import { consume, _useHydrate, __nl_load, __nl_hydrate } from "./index";
 import { render, screen } from "@testing-library/react";
 
-describe("next-load", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+type User = {
+  username: string;
+  displayName?: string;
+}
 
+describe("next-load", () => {
   describe("consume", () => {
+    beforeEach(() => {
+      delete globalThis.__NEXT_LOAD__
+      jest.clearAllMocks();
+    });
+
     it("should work", () => {
       console.warn = jest.fn();
       globalThis.__NEXT_LOAD__ = { hydrate: "next-load" };
@@ -31,21 +37,76 @@ describe("next-load", () => {
   });
 
   describe("_useHydrate", () => {
-    it("should work", async () => {
+    beforeEach(() => {
+      delete window.__NEXT_LOAD__
+      jest.clearAllMocks();
+    });
+    it("should work with an object", async () => {
       const Parent = ({ children }: { children: React.ReactNode }) => {
-        return <div id="__NEXT_LOAD_DATA__" data-hydrate="next-load" data-page="/test">{children}</div>
+        return <div id="__NEXT_LOAD_DATA__" data-hydrate={JSON.stringify({ data: { text: 'test' } })} data-page="/test">{children}</div>
       };
 
       const Component = () => {
         _useHydrate();
-        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate}</>;
+        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate?.data?.text}</>;
       };
 
       render(<Parent><Component /></Parent>)
 
-      const text = await screen.findByText("RESULT: next-load");
+      const text = await screen.findByText("RESULT: test");
 
       expect(text.id).toEqual('__NEXT_LOAD_DATA__');
+    });
+  });
+
+  describe("__nl_load", () => {
+    beforeEach(() => {
+      delete globalThis.__NEXT_LOAD__
+      jest.clearAllMocks();
+    });
+
+    it("should work", async () => {
+      const config = {
+        data: {
+          pages: ['/about'],
+          load: async () => 'works'
+        },
+        user: {
+          pages: ['/about'],
+          load: () => ({ username: 'Aral' })
+        },
+        empty: {},
+        error: {
+          pages: ['/error'],
+          load: () => ({ error: '404' })
+        }
+      }
+      const data = await __nl_load(undefined, '/about', config);
+      expect(data).toEqual({ data: 'works', user: { username: 'Aral' } });
+    });
+  });
+
+  describe("__nl_hydrate", () => {
+    it("should work", async () => {
+      const config = {
+        data: {
+          pages: ['/about'],
+          load: async () => 'works'
+        },
+        user: {
+          pages: ['/about'],
+          load: () => ({ username: 'aralroca', displayName: 'Aral Roca' } as User),
+          hydrate: (user: User) => ({ username: user.username.toUpperCase() })
+        },
+        empty: {},
+        error: {
+          pages: ['/error'],
+          load: () => ({ error: '404' })
+        }
+      }
+      const loadData = await __nl_load(undefined, '/about', config);
+      const data = await __nl_hydrate(loadData, '/about', config);
+      expect(data).toEqual({ data: 'works', user: { username: 'ARALROCA' } });
     });
   });
 });

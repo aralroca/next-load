@@ -1,4 +1,6 @@
+import fs from 'fs'
 import ts from 'typescript'
+import path from 'path'
 import { ParsedFilePkg, Transformer } from './types'
 
 export const extensionsRgx = /\.(tsx|ts|js|cjs|mjs|jsx)$/
@@ -198,7 +200,7 @@ export function resolveIdentifier(
 ): ts.Declaration | ts.Identifier {
   const identifierSymbol = getSymbol(filePkg, identifier)
 
-  if (identifierSymbol && Array.isArray(identifierSymbol.declarations)) {
+  if (identifierSymbol && Array.isArray(identifierSymbol.declarations) && identifierSymbol.declarations.length > 0) {
     const identifierDeclaration = identifierSymbol.declarations[0]
 
     if (ts.isVariableDeclaration(identifierDeclaration)) {
@@ -441,6 +443,123 @@ export function interceptExport(
   return finalLocalName
 }
 
+/**
+ * This function is used to get a module.exports nodes from a filePkg.
+ *
+ * @param filePkg - The file package to search
+ * @returns The module.exports object literal expression if it exists
+ */
+export function getCommonJSModuleExports(filePkg: ParsedFilePkg) {
+  const exports: { [key: string]: ts.Node } = {}
+
+  filePkg.transform((sourceFile, context) => {
+    function visitor(node: ts.Node): ts.Node {
+      // `module.exports = ...`
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        const left = node.left
+        if (ts.isPropertyAccessExpression(left) && left.expression.getText() === 'module' && left.name.getText() === 'exports') {
+          const right = node.right
+          if (ts.isObjectLiteralExpression(right)) {
+            right.properties.forEach((p) => {
+              if (ts.isPropertyAssignment(p)) {
+                const name = p.name.getText()
+                exports[name] = p.initializer
+              }
+            })
+          }
+        }
+      }
+
+      return ts.visitEachChild(node, visitor, context)
+    }
+    return ts.visitNode(sourceFile, visitor)
+  })
+
+  return exports
+}
+
+export function getLoadersAndHydratorsLists(dir: string, nextLoadConfigFilename: string) {
+  const loaders: string[] = [];
+  const hydraters: string[] = [];
+  const nextLoadConfigPkg = parseFile(dir, nextLoadConfigFilename)
+  const nextLoadConfigExport = getDefaultExport(nextLoadConfigPkg)
+
+  if (!nextLoadConfigExport) {
+    const exports = getCommonJSModuleExports(nextLoadConfigPkg)
+    const exportsValues = Object.values(exports)
+
+    if (exportsValues.length === 0) return { loaders, hydraters }
+
+    // module.exports = { load, hydrate }
+    exportsValues.forEach(node => {
+      const { pages, load, hydrate } = getPagesFromNode(node)
+      if (load) loaders.push(...pages)
+      if (hydrate) hydraters.push(...pages)
+    })
+
+    return { loaders: uniqueArray(loaders), hydraters: uniqueArray(hydraters) }
+  }
+
+  // export default = { load, hydrate }
+  ts.forEachChild(nextLoadConfigExport, (node) => {
+    if (!ts.isPropertyAssignment(node)) return
+    const { pages, load, hydrate } = getPagesFromNode(node.initializer)
+    if (load) loaders.push(...pages)
+    if (hydrate) hydraters.push(...pages)
+  })
+
+  return { loaders: uniqueArray(loaders), hydraters: uniqueArray(hydraters) }
+}
+
+function getPagesFromNode(node: ts.Node) {
+  const pages: string[] = []
+  let load = false
+  let hydrate = false
+  ts.forEachChild(node, (n) => {
+    if (!ts.isPropertyAssignment(n)) return
+    const text = removeQuotes(n.name.getText())
+    if (text === 'pages') {
+      ts.forEachChild(n.initializer, (n) => {
+        const innerText = n.getText().trim()
+        if (innerText === 'load') load = true
+        if (innerText === 'hydrate') hydrate = true
+        if (ts.isStringLiteral(n)) pages.push(n.text)
+        else if (n.kind === ts.SyntaxKind.NewExpression || n.kind === ts.SyntaxKind.RegularExpressionLiteral) {
+          pages.push(eval(innerText))
+        }
+      })
+    }
+    if (text === 'load') load = true
+    if (text === 'hydrate') hydrate = true
+  })
+  return { pages, load, hydrate }
+}
+
 export function removeCommentsFromCode(code: string) {
   return code.replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '')
+}
+
+function removeQuotes(str: string) {
+  return str.replace(/^['|"|`]+|['|"|`]+$/g, '')
+}
+
+function uniqueArray<T>(arr: T[]) {
+  return Array.from(new Set(arr))
+}
+
+export function isPageOfTheList(page: string, list: (string | RegExp)[] = []) {
+  return list.some((item) => {
+    if (typeof item === 'string') return item === page
+    return item.test(page)
+  })
+}
+
+export function createConfigFileIfNotExists(dir: string, filename: string) {
+  if (fs.existsSync(path.join(dir, filename))) return
+  fs.writeFileSync(path.join(dir, filename), `export default { 
+  example: {
+    pages: ['/example', new RegExp('^/')],
+    load: async () => 'Modify the next.load.(js|ts) file to change the pages data',
+  }
+}`)
 }

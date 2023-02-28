@@ -20,16 +20,55 @@ export function _useHydrate() {
 
   if (isClient && !window.__NEXT_LOAD__) {
     window.__NEXT_LOAD__ = {}
-    update(false)
+    update()
   }
 
   useEffect(update)
-  function update(rerender = true) {
+  function update() {
     const el = document.getElementById('__NEXT_LOAD_DATA__')
     if (!el) return
     const { hydrate, page } = el.dataset
     const shouldRerender = page !== window.__NEXT_LOAD__.page
-    window.__NEXT_LOAD__ = { hydrate, page }
-    if (shouldRerender && rerender) forceUpdate()
+    window.__NEXT_LOAD__ = { hydrate: JSON.parse(hydrate!), page }
+    if (shouldRerender) forceUpdate()
   }
+}
+
+export async function __nl_load(pageProps: any, page: string, config: any) {
+  const keys = Object.keys(config)
+
+  const data = await Promise.all(keys.map(key => {
+    const item = config[key]
+    if (isPageOfTheList(page, item.pages) && typeof item.load === 'function') {
+      // TODO: support { pageProps, layoutProps, loadingProps, templateProps, ... }
+      return item.load({ pageProps }, page)
+    }
+  }))
+
+  return data.reduce((acc, item, index) => {
+    if (item) acc[keys[index]] = item
+    return acc
+  }, {})
+}
+
+export async function __nl_hydrate(props: any, page: string, config: any) {
+  const keys = Object.keys(props)
+
+  const data = await Promise.all(keys.map(key => {
+    const item = config[key]
+    const toHydrate = isPageOfTheList(page, item.pages) && typeof item.hydrate === 'function'
+    return toHydrate ? item.hydrate(props[key], page) : props[key]
+  }))
+
+  return data.reduce((acc, item, index) => {
+    if (item) acc[keys[index]] = item
+    return acc
+  }, {})
+}
+
+function isPageOfTheList(page: string, list: (string | RegExp)[] = []) {
+  return list.some((item) => {
+    if (typeof item === 'string') return item === page
+    return item.test(page)
+  })
 }
