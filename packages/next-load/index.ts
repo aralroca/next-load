@@ -34,13 +34,14 @@ export function _useHydrate() {
   }
 }
 
-export async function __nl_load(props: any, page: string, config: any) {
+export async function __nl_load(pageProps: any, page: string, config: any) {
   const keys = Object.keys(config)
 
   const data = await Promise.all(keys.map(key => {
     const item = config[key]
     if (isPageOfTheList(page, item.pages) && typeof item.load === 'function') {
-      return item.load(props, page)
+      // TODO: support { pageProps, layoutProps, loadingProps, templateProps, ... }
+      return item.load({ pageProps }, page)
     }
   }))
 

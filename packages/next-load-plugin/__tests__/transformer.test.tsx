@@ -139,12 +139,10 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS')
     })
     it('SHOULD receive the page props as params to load better the data in a SERVER /page', async () => {
-      type PageProps = { text: string }
-
       await applyConfig({
         data: {
           pages: ['/'],
-          load: async (pageProps: PageProps) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
+          load: async ({ pageProps }: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
         }
       })
 
@@ -154,9 +152,9 @@ describe('transformer', () => {
 
         type DataType = { text: string };
 
-        export default function Page(pageProps) {
+        export default function Page(props) {
           const { data } = consume<DataType>();
-          return <div data-testid="test-id">{pageProps.text}: {data.text}</div>; 
+          return <div data-testid="test-id">{props.text}: {data.text}</div>; 
         }
       `)
       const options = { pageNoExt: '/page', loaders: ['/'], ...insideAppDir }
@@ -171,7 +169,7 @@ describe('transformer', () => {
       await applyConfig({
         data: {
           pages: ['/about'],
-          load: async (pageProps: any, pathname: string) => {
+          load: async ({ pageProps }: any, pathname: string) => {
             mockLoad(pageProps, pathname)
             return { text: `LOAD WORKS IN ${pathname}` }
           },
@@ -314,7 +312,7 @@ describe('transformer', () => {
       await applyConfig({
         data: {
           pages: ['/about'],
-          load: async (pageProps: any, pathname: string) => {
+          load: async ({ pageProps }: any, pathname: string) => {
             mockLoad(pageProps, pathname)
             return { text: `LOAD WORKS IN ${pathname}` }
           },
@@ -343,7 +341,7 @@ describe('transformer', () => {
       await applyConfig({
         data: {
           pages: ['/'],
-          load: async (pageProps: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
+          load: async ({ pageProps }: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
         }
       })
       const pagePkg = parseCode('jsx', `
@@ -562,7 +560,7 @@ describe('transformer', () => {
       await applyConfig({
         data: {
           pages: ['/about'],
-          load: async (pageProps: any, pathname: string) => {
+          load: async ({ pageProps }: any, pathname: string) => {
             mockLoad(pageProps, pathname)
             return { text: `LOAD WORKS IN ${pathname}` }
           },
