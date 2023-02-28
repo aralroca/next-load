@@ -40,7 +40,7 @@ export async function __nl_load(props: any, page: string, config: any) {
   const data = await Promise.all(keys.map(key => {
     const item = config[key]
     if (isPageOfTheList(page, item.pages) && typeof item.load === 'function') {
-      return item.load(props)
+      return item.load(props, page)
     }
   }))
 
@@ -56,7 +56,7 @@ export async function __nl_hydrate(props: any, page: string, config: any) {
   const data = await Promise.all(keys.map(key => {
     const item = config[key]
     const toHydrate = isPageOfTheList(page, item.pages) && typeof item.hydrate === 'function'
-    return toHydrate ? item.hydrate(props[key]) : props[key]
+    return toHydrate ? item.hydrate(props[key], page) : props[key]
   }))
 
   return data.reduce((acc, item, index) => {

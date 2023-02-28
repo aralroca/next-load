@@ -166,6 +166,35 @@ describe('transformer', () => {
       const div = screen.getByTestId('test-id')
       expect(div.textContent).toBe('Page: LOAD WORKS IN PAGE')
     })
+    it('SHOULD receive the page name as second argument to load better the data in a SERVER /page', async () => {
+      const mockLoad = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async (pageProps: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+        }
+      })
+
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export default function Page(pageProps) {
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
+        }
+      `)
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page({})}</>)
+      const div = screen.getByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
+    })
     it('SHOULD transform the SERVER /page adding element to hydrate to clients', async () => {
       await applyConfig({
         data: {
@@ -279,6 +308,36 @@ describe('transformer', () => {
       render(<ClientPage />);
       const div = await screen.findByTestId('test')
       expect(div.textContent).toBe('Client page: LOAD WORKS')
+    })
+    it('SHOULD receive the page name as second argument to load better the data in a CLIENT /page', async () => {
+      const mockLoad = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async (pageProps: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+        }
+      })
+
+      const pagePkg = parseCode('jsx', `
+        "use client";
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export default function Page(pageProps) {
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
+        }
+      `)
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const Component = await importFromString(output).then(m => m.default)
+      render(<Component />)
+      const div = await screen.findByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
     })
     it('SHOULD receive the page props as params to load better the data in a CLIENT /page', async () => {
       await applyConfig({
@@ -496,6 +555,44 @@ describe('transformer', () => {
       const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement.dataset.page).toBe('/')
       expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"HYDRATE WORKS\"}}')
+    })
+    it('SHOULD receive the page name as second argument to load & hydrate method in a SERVER /page', async () => {
+      const mockLoad = jest.fn()
+      const mockHydrate = jest.fn()
+      await applyConfig({
+        data: {
+          pages: ['/about'],
+          load: async (pageProps: any, pathname: string) => {
+            mockLoad(pageProps, pathname)
+            return { text: `LOAD WORKS IN ${pathname}` }
+          },
+          hydrate: async (data: any, pathname: string) => {
+            mockHydrate(data, pathname)
+            return { text: `HYDRATE WORKS IN ${pathname}` }
+          }
+        }
+      })
+
+      const pagePkg = parseCode('jsx', `
+        import React from 'react';
+        import { consume } from 'next-load';
+
+        export default function Page(pageProps) {
+          const { data } = consume();
+          return <div data-testid="test-id">{data.text}</div>;
+        }
+      `)
+      const options = { pageNoExt: '/about/page', loaders: ['/about'], hydraters: ['/about'], ...insideAppDir }
+      const output = transformer(pagePkg, options)
+      const page = await importFromString(output).then(m => m.default)
+      render(<>{await page({})}</>)
+      const div = screen.getByTestId('test-id')
+      expect(div.textContent).toBe('LOAD WORKS IN /about')
+      expect(mockLoad).toBeCalledWith({}, '/about')
+      expect(mockHydrate).toBeCalledWith({ text: 'LOAD WORKS IN /about' }, '/about')
+      const hydrateElement = screen.getByTestId('__NEXT_LOAD_DATA__')
+      expect(hydrateElement.dataset.page).toBe('/about')
+      expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"HYDRATE WORKS IN /about\"}}')
     })
   });
 });
