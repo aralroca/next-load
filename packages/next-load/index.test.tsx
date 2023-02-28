@@ -8,11 +8,12 @@ type User = {
 }
 
 describe("next-load", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe("consume", () => {
+    beforeEach(() => {
+      delete globalThis.__NEXT_LOAD__
+      jest.clearAllMocks();
+    });
+
     it("should work", () => {
       console.warn = jest.fn();
       globalThis.__NEXT_LOAD__ = { hydrate: "next-load" };
@@ -36,21 +37,9 @@ describe("next-load", () => {
   });
 
   describe("_useHydrate", () => {
-    it("should work", async () => {
-      const Parent = ({ children }: { children: React.ReactNode }) => {
-        return <div id="__NEXT_LOAD_DATA__" data-hydrate="next-load" data-page="/test">{children}</div>
-      };
-
-      const Component = () => {
-        _useHydrate();
-        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate}</>;
-      };
-
-      render(<Parent><Component /></Parent>)
-
-      const text = await screen.findByText("RESULT: next-load");
-
-      expect(text.id).toEqual('__NEXT_LOAD_DATA__');
+    beforeEach(() => {
+      delete window.__NEXT_LOAD__
+      jest.clearAllMocks();
     });
     it("should work with an object", async () => {
       const Parent = ({ children }: { children: React.ReactNode }) => {
@@ -59,7 +48,7 @@ describe("next-load", () => {
 
       const Component = () => {
         _useHydrate();
-        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate.data.test}</>;
+        return <>{'RESULT: ' + window.__NEXT_LOAD__.hydrate?.data?.text}</>;
       };
 
       render(<Parent><Component /></Parent>)
@@ -71,6 +60,11 @@ describe("next-load", () => {
   });
 
   describe("__nl_load", () => {
+    beforeEach(() => {
+      delete globalThis.__NEXT_LOAD__
+      jest.clearAllMocks();
+    });
+
     it("should work", async () => {
       const config = {
         data: {

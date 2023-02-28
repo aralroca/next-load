@@ -25,6 +25,11 @@ const outsideAppDir = {
 
 const moreHydrateInfo = 'For more information, please refer to the documentation provided at https://github.com/aralroca/next-load#hydrate.'
 
+const log = console.log
+const mockLog = jest.spyOn(console, 'log').mockImplementation((args) => { log(args) });
+
+jest.mock('@next-load-root/next.load', () => ({ __esModule: true, default: {} }), { virtual: true })
+
 describe('transformer', () => {
   describe('WITHOUT load export', () => {
     beforeEach(() => {
@@ -108,12 +113,12 @@ describe('transformer', () => {
     })
 
     it('SHOULD be possible to load this data inside a SERVER /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
-        }
-      }), { virtual: true })
+        },
+      })
 
       const pagePkg = parseCode('jsx', `
         import React from 'react';
@@ -135,12 +140,13 @@ describe('transformer', () => {
     })
     it('SHOULD receive the page props as params to load better the data in a SERVER /page', async () => {
       type PageProps = { text: string }
-      jest.mock('@next-load-root/next.load', () => ({
+
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async (pageProps: PageProps) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
         }
-      }), { virtual: true })
+      })
 
       const pagePkg = parseCode('jsx', `
         import React from 'react';
@@ -161,12 +167,12 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS IN PAGE')
     })
     it('SHOULD transform the SERVER /page adding element to hydrate to clients', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
 
@@ -181,12 +187,12 @@ describe('transformer', () => {
       expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"LOAD WORKS\"}}')
     })
     it('SHOULD also work the "load" without promise in the SERVER /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
 
@@ -201,15 +207,14 @@ describe('transformer', () => {
       expect(hydrateElement.dataset.hydrate).toBe('{\"data\":{\"text\":\"LOAD WORKS\"}}')
     })
     it('SHOULD be possible to hydrate a big array of data in SERVER /page', async () => {
-      jest.mock('@next-load-root/next.load', () => {
-        const bigDataSize = Array.from({ length: 1000 }).map((_, i) => i)
-        return {
-          data: {
-            pages: [new RegExp('/product.*')],
-            load: () => bigDataSize
-          }
+      const bigDataSize = Array.from({ length: 1000 }).map((_, i) => i)
+      await applyConfig({
+        data: {
+          pages: [new RegExp('/product.*')],
+          load: () => bigDataSize
         }
-      }, { virtual: true })
+      })
+
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         export default function Page() { return <div>Page</div>; }
@@ -223,12 +228,12 @@ describe('transformer', () => {
       expect(JSON.parse(hydrateElement.dataset.hydrate!).data).toHaveLength(1000)
     })
     it('SHOULD be possible to load this data inside a CLIENT /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
@@ -250,12 +255,12 @@ describe('transformer', () => {
     })
 
     it('SHOULD also work the "load" without promise in the CLIENT /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
@@ -276,12 +281,12 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Client page: LOAD WORKS')
     })
     it('SHOULD receive the page props as params to load better the data in a CLIENT /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async (pageProps: any) => ({ text: 'LOAD WORKS IN ' + pageProps.text.toUpperCase() })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
@@ -302,12 +307,12 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Client Page: LOAD WORKS IN CLIENT PAGE')
     })
     it('SHOULD NOT add an element to hydrate to clients in a CLIENT page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
@@ -327,13 +332,13 @@ describe('transformer', () => {
       const hydrateElement = screen.queryByTestId('__NEXT_LOAD_DATA__')
       expect(hydrateElement).toBe(null)
     })
-    it('SHOULD NOT transform the SERVER /component', () => {
-      jest.mock('@next-load-root/next.load', () => ({
+    it('SHOULD NOT transform the SERVER /component', async () => {
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         export default function Page() { return <div>Page</div>; }
       `)
@@ -343,12 +348,12 @@ describe('transformer', () => {
       expect(output).toBe(code)
     });
     it('SHOULD transform the CLIENT /component to hydrate but not use the load', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'SHOULD NOT BE USED' }),
         }
-      }), { virtual: true })
+      })
       const element = document.createElement('div')
       element.dataset.hydrate = JSON.stringify({ data: { text: "HYDRATE WORKS" } })
       document.getElementById = jest.fn().mockReturnValue(element)
@@ -370,12 +375,12 @@ describe('transformer', () => {
       expect(div.textContent).toBe('RESULT: HYDRATE WORKS')
     });
     it('SHOULD transform the CLIENT /component to hydrate but not use the load in outside app dir components', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/some/component'],
           load: async () => ({ text: 'SHOULD NOT BE USED' }),
         }
-      }), { virtual: true })
+      })
       const element = document.createElement('div')
       element.dataset.page = '/some/component'
       element.dataset.hydrate = JSON.stringify({ data: { text: 'HYDRATE WORKS' } })
@@ -406,13 +411,12 @@ describe('transformer', () => {
     })
 
     it('SHOULD NOT be possible to use hydrate without load in a SERVER /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           hydrate: async () => ({ text: 'HYDRATE WORKS' })
         }
-      }), { virtual: true })
-      console.log = jest.fn()
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
@@ -432,17 +436,16 @@ describe('transformer', () => {
       expect(output).toBe(code)
       const prefix = colorRed('[next-load] ERROR ')
       const message = colorOrange(`The function "hydrate export" can only be accessed through the use of "load export". ${moreHydrateInfo}`)
-      expect(console.log).toHaveBeenCalledWith(prefix, message)
+      expect(mockLog).toHaveBeenCalledWith(prefix, message)
     });
     it('SHOULD NOT be possible to use hydrate with load in a CLIENT /page', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' }),
           hydrate: async () => ({ text: 'HYDRATE WORKS' })
         }
-      }), { virtual: true })
-      console.log = jest.fn()
+      })
       const pagePkg = parseCode('jsx', `
         "use client";
         import React from 'react';
@@ -463,16 +466,16 @@ describe('transformer', () => {
       expect(div.textContent).toBe('Page: LOAD WORKS')
       const prefix = colorRed('[next-load] ERROR ')
       const message = colorOrange(`The "hydrate export" function is exclusively accessible within a server page. To achieve similar functionality, utilize the "load export" function. ${moreHydrateInfo}`)
-      expect(console.log).toHaveBeenCalledWith(prefix, message)
+      expect(mockLog).toHaveBeenCalledWith(prefix, message)
     });
     it('SHOULD be possible to load data inside a SERVER /page and hydrate the hydrate data', async () => {
-      jest.mock('@next-load-root/next.load', () => ({
+      await applyConfig({
         data: {
           pages: ['/'],
           load: async () => ({ text: 'LOAD WORKS' }),
           hydrate: async () => ({ text: 'HYDRATE WORKS' })
         }
-      }), { virtual: true })
+      })
       const pagePkg = parseCode('jsx', `
         import React from 'react';
         import { consume } from 'next-load';
@@ -496,6 +499,12 @@ describe('transformer', () => {
     })
   });
 });
+
+async function applyConfig(config: any = {}) {
+  // @ts-ignore
+  const module = await import('@next-load-root/next.load')
+  module.default = config
+}
 
 async function importFromString(code: string): Promise<any> {
   const tempFile = join(tmpdir(), `toremove-${Date.now()}.tsx`);
